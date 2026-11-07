@@ -142,6 +142,12 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "COMPONENT_SPLIT_REQUEST": True,
+    # Two models both have a `status` field; give their enums stable, readable names.
+    "ENUM_NAME_OVERRIDES": {
+        "IssueStatusEnum": "issues.models.Issue.Status",
+        "AssignmentStatusEnum": "departments.models.IssueAssignment.Status",
+        "ModerationStatusEnum": "issues.models.Issue.ModerationStatus",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")

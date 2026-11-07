@@ -11,7 +11,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from .exceptions import InvalidStatusTransition, IssueNotEditable
+from .exceptions import Conflict, InvalidStatusTransition, IssueNotEditable
 from .images import sanitize_image
 from .models import (
     ContentReport,
@@ -26,10 +26,20 @@ from .models import (
 MAX_IMAGES_PER_ISSUE = 5
 EDITABLE_FIELDS = frozenset({"title", "description"})
 
-# Phase 2 stub: nothing may leave any state. Phase 3's officer/admin endpoints will fill in
-# the real graph here (e.g. REPORTED -> UNDER_REVIEW); it stays the single place transitions
-# are validated.
-ALLOWED_TRANSITIONS = {status: frozenset() for status in Issue.Status.values}
+_S = Issue.Status
+
+# The one place status transitions are defined and validated. REJECTED is terminal.
+ALLOWED_TRANSITIONS = {
+    _S.REPORTED: frozenset({_S.UNDER_REVIEW, _S.REJECTED}),
+    _S.UNDER_REVIEW: frozenset({_S.ASSIGNED, _S.REJECTED}),
+    _S.ASSIGNED: frozenset({_S.IN_PROGRESS, _S.UNDER_REVIEW}),
+    _S.IN_PROGRESS: frozenset({_S.RESOLVED}),
+    _S.RESOLVED: frozenset({_S.REOPENED}),
+    _S.REOPENED: frozenset({_S.UNDER_REVIEW}),
+    _S.REJECTED: frozenset(),
+}
+# Moving *into* these needs a human-readable reason in the history row.
+REASON_REQUIRED = frozenset({_S.REJECTED, _S.REOPENED})
 
 
 def _new_reference_number():
@@ -87,15 +97,29 @@ def update_issue_text(*, issue_id, actor, **fields):
 
 @transaction.atomic
 def change_status(*, issue_id, new_status, changed_by, reason=""):
-    """Validated status transition + history row, atomically. Stub: every transition is rejected."""
+    """The only way an issue's status changes: validated transition + history row, atomically.
+
+    Order of checks: transition allowed -> reason present (REJECTED/REOPENED) -> evidence
+    present (RESOLVED needs at least one RESOLUTION-type image).
+    """
     issue = Issue.objects.select_for_update().get(pk=issue_id)
     old_status = issue.status
     if new_status not in ALLOWED_TRANSITIONS.get(old_status, frozenset()):
         raise InvalidStatusTransition(f"Cannot move an issue from '{old_status}' to '{new_status}'.")
 
+    reason = (reason or "").strip()
+    if new_status in REASON_REQUIRED and not reason:
+        raise ValidationError({"reason": ["A reason is required for this status change."]})
+    if new_status == Issue.Status.RESOLVED and not issue.images.filter(
+        image_type=IssueImage.ImageType.RESOLUTION
+    ).exists():
+        raise ValidationError({"image": ["At least one resolution photo is required as evidence before resolving."]})
+
     issue.status = new_status
     if new_status == Issue.Status.RESOLVED:
         issue.resolved_at = timezone.now()
+    elif new_status == Issue.Status.REOPENED:
+        issue.resolved_at = None
     issue.save(update_fields=["status", "resolved_at"])
     IssueStatusHistory.objects.create(
         issue=issue, old_status=old_status, new_status=new_status, changed_by=changed_by, reason=reason
@@ -137,11 +161,15 @@ def add_image(*, issue_id, actor, upload):
         raise PermissionDenied("You can only add images to your own issues.")
     if issue.status != Issue.Status.REPORTED:
         raise IssueNotEditable("Images can only be added while the issue is in REPORTED status.")
-    if issue.images.count() >= MAX_IMAGES_PER_ISSUE:
-        raise ValidationError({"image": [f"An issue can have at most {MAX_IMAGES_PER_ISSUE} images."]})
+    return attach_image(issue, upload, IssueImage.ImageType.REPORT)
 
+
+def attach_image(issue, upload, image_type):
+    """Validate/sanitise an upload and store it, enforcing the per-type cap. Caller holds the issue lock."""
+    if issue.images.filter(image_type=image_type).count() >= MAX_IMAGES_PER_ISSUE:
+        raise ValidationError({"image": [f"An issue can have at most {MAX_IMAGES_PER_ISSUE} images of this type."]})
     cleaned = sanitize_image(upload)
-    return IssueImage.objects.create(issue=issue, image=cleaned, image_type=IssueImage.ImageType.REPORT)
+    return IssueImage.objects.create(issue=issue, image=cleaned, image_type=image_type)
 
 
 def _report(reporter, reason, details, **target):
@@ -157,3 +185,56 @@ def report_issue(*, issue, reporter, reason, details=""):
 
 def report_comment(*, comment, reporter, reason, details=""):
     return _report(reporter, reason, details, comment=comment)
+
+
+# --------------------------------------------------------------------------------------
+# Admin moderation. Each is one atomic action; status changes still go through change_status.
+# --------------------------------------------------------------------------------------
+
+
+@transaction.atomic
+def approve_issue(*, issue_id, admin):
+    """Moderation PENDING -> APPROVED and status REPORTED -> UNDER_REVIEW, in one action."""
+    issue = Issue.objects.select_for_update().get(pk=issue_id)
+    if issue.moderation_status != Issue.ModerationStatus.PENDING:
+        raise Conflict("Only issues pending moderation can be approved.")
+    if issue.status != Issue.Status.REPORTED:
+        # The graph alone isn't enough: ASSIGNED/REOPENED -> UNDER_REVIEW are valid transitions,
+        # but approval is only ever REPORTED -> UNDER_REVIEW.
+        raise Conflict("Only issues in REPORTED status can be approved.")
+    change_status(
+        issue_id=issue_id, new_status=Issue.Status.UNDER_REVIEW, changed_by=admin, reason="Approved by moderator"
+    )
+    Issue.objects.filter(pk=issue_id).update(moderation_status=Issue.ModerationStatus.APPROVED)
+
+
+@transaction.atomic
+def reject_issue(*, issue_id, admin, reason):
+    """Hide the issue (moderation REJECTED) *and* end its lifecycle (status REJECTED), with a reason.
+
+    Both, because they answer different questions: moderation_status decides who can see the
+    issue, status is the lifecycle the history/analytics read. Rejecting only one would leave
+    a publicly visible "rejected" issue, or a hidden issue still marked as live.
+    """
+    Issue.objects.select_for_update().get(pk=issue_id)
+    change_status(issue_id=issue_id, new_status=Issue.Status.REJECTED, changed_by=admin, reason=reason)
+    Issue.objects.filter(pk=issue_id).update(moderation_status=Issue.ModerationStatus.REJECTED)
+    from departments.services import release_assignments  # local import: departments depends on issues
+
+    release_assignments(issue_id)
+
+
+def reopen_issue(*, issue_id, admin, reason):
+    """RESOLVED -> REOPENED. The reason is mandatory (enforced in change_status)."""
+    return change_status(issue_id=issue_id, new_status=Issue.Status.REOPENED, changed_by=admin, reason=reason)
+
+
+def hide_comment(*, comment_id, admin):
+    """Moderation: hide a comment from public view. Idempotent. Returns (comment, changed)."""
+    with transaction.atomic():
+        comment = IssueComment.objects.select_for_update().get(pk=comment_id)
+        if comment.is_hidden:
+            return comment, False
+        comment.is_hidden = True
+        comment.save(update_fields=["is_hidden"])
+        return comment, True

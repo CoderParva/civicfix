@@ -9,6 +9,7 @@ from issues.models import (
     Issue,
     IssueComment,
     IssueFollow,
+    IssueImage,
     IssueStatusHistory,
     IssueVote,
 )
@@ -108,23 +109,97 @@ class TestComments:
         assert comment.is_hidden is False
 
 
-class TestStatusTransitionStub:
-    @pytest.mark.parametrize("target", Issue.Status.values)
-    def test_nothing_is_allowed_out_of_reported(self, issue, citizen, target):
-        with pytest.raises(InvalidStatusTransition):
-            services.change_status(issue_id=issue.pk, new_status=target, changed_by=citizen)
-        issue.refresh_from_db()
-        assert issue.status == Issue.Status.REPORTED
-        assert IssueStatusHistory.objects.filter(issue=issue).count() == 1  # only the creation row
+# Independent copy of the spec -- deliberately NOT imported from services, so a typo there fails here.
+EXPECTED_GRAPH = {
+    "reported": {"under_review", "rejected"},
+    "under_review": {"assigned", "rejected"},
+    "assigned": {"in_progress", "under_review"},
+    "in_progress": {"resolved"},
+    "resolved": {"reopened"},
+    "reopened": {"under_review"},
+    "rejected": set(),
+}
+ALL_PAIRS = [(a, b) for a in Issue.Status.values for b in Issue.Status.values]
 
-    def test_mechanism_updates_status_and_history_together(self, issue, officer, monkeypatch):
-        """Proves the plumbing Phase 3 will use: validate -> update -> history, atomically."""
-        monkeypatch.setitem(services.ALLOWED_TRANSITIONS, "reported", frozenset({"under_review"}))
-        services.change_status(issue_id=issue.pk, new_status="under_review", changed_by=officer, reason="checked")
+
+def _evidence(issue):
+    IssueImage.objects.create(issue=issue, image="issues/x/evidence.png", image_type=IssueImage.ImageType.RESOLUTION)
+
+
+class TestStatusTransitions:
+    def test_graph_matches_spec_exactly(self):
+        assert {k: set(v) for k, v in services.ALLOWED_TRANSITIONS.items()} == EXPECTED_GRAPH
+        assert set(EXPECTED_GRAPH) == set(Issue.Status.values)  # no status left out of the graph
+
+    @pytest.mark.parametrize("old,new", ALL_PAIRS)
+    def test_every_pair(self, issue, officer, old, new):
+        Issue.objects.filter(pk=issue.pk).update(status=old)
+        issue.refresh_from_db()
+        history_before = IssueStatusHistory.objects.filter(issue=issue).count()
+        if new in EXPECTED_GRAPH[old]:
+            if new == "resolved":
+                _evidence(issue)
+            services.change_status(issue_id=issue.pk, new_status=new, changed_by=officer, reason="because")
+            issue.refresh_from_db()
+            assert issue.status == new
+            latest = IssueStatusHistory.objects.filter(issue=issue).latest("created_at")
+            assert (latest.old_status, latest.new_status, latest.reason) == (old, new, "because")
+            assert IssueStatusHistory.objects.filter(issue=issue).count() == history_before + 1
+        else:
+            with pytest.raises(InvalidStatusTransition):
+                services.change_status(issue_id=issue.pk, new_status=new, changed_by=officer, reason="because")
+            issue.refresh_from_db()
+            assert issue.status == old
+            assert IssueStatusHistory.objects.filter(issue=issue).count() == history_before
+
+    def test_unknown_status_rejected(self, issue, officer):
+        with pytest.raises(InvalidStatusTransition):
+            services.change_status(issue_id=issue.pk, new_status="teleported", changed_by=officer)
+
+    @pytest.mark.parametrize("old,new", [("reported", "rejected"), ("under_review", "rejected"), ("resolved", "reopened")])
+    @pytest.mark.parametrize("reason", ["", "   ", None])
+    def test_reason_mandatory_for_rejected_and_reopened(self, issue, officer, old, new, reason):
+        Issue.objects.filter(pk=issue.pk).update(status=old)
+        with pytest.raises(ValidationError) as exc:
+            services.change_status(issue_id=issue.pk, new_status=new, changed_by=officer, reason=reason)
+        assert "reason" in exc.value.detail
+        issue.refresh_from_db()
+        assert issue.status == old  # nothing changed
+
+    def test_reason_not_required_elsewhere(self, issue, officer):
+        services.change_status(issue_id=issue.pk, new_status="under_review", changed_by=officer)  # no reason
         issue.refresh_from_db()
         assert issue.status == "under_review"
-        latest = IssueStatusHistory.objects.filter(issue=issue).latest("created_at")
-        assert (latest.old_status, latest.new_status, latest.changed_by) == ("reported", "under_review", officer)
+
+    def test_resolved_needs_resolution_image(self, issue, officer):
+        Issue.objects.filter(pk=issue.pk).update(status="in_progress")
+        with pytest.raises(ValidationError) as exc:
+            services.change_status(issue_id=issue.pk, new_status="resolved", changed_by=officer)
+        assert "image" in exc.value.detail
+        issue.refresh_from_db()
+        assert issue.status == "in_progress" and issue.resolved_at is None
+
+    def test_citizen_report_photo_is_not_resolution_evidence(self, issue, officer):
+        Issue.objects.filter(pk=issue.pk).update(status="in_progress")
+        IssueImage.objects.create(issue=issue, image="issues/x/report.png", image_type=IssueImage.ImageType.REPORT)
+        with pytest.raises(ValidationError):
+            services.change_status(issue_id=issue.pk, new_status="resolved", changed_by=officer)
+
+    def test_resolve_sets_resolved_at_and_reopen_clears_it(self, issue, officer):
+        Issue.objects.filter(pk=issue.pk).update(status="in_progress")
+        _evidence(issue)
+        services.change_status(issue_id=issue.pk, new_status="resolved", changed_by=officer)
+        issue.refresh_from_db()
+        assert issue.resolved_at is not None
+        services.change_status(issue_id=issue.pk, new_status="reopened", changed_by=officer, reason="still broken")
+        issue.refresh_from_db()
+        assert issue.resolved_at is None
+
+    def test_failed_transition_leaves_no_partial_write(self, issue, officer):
+        Issue.objects.filter(pk=issue.pk).update(status="resolved", resolved_at=None)
+        with pytest.raises(ValidationError):
+            services.change_status(issue_id=issue.pk, new_status="reopened", changed_by=officer, reason="")
+        assert IssueStatusHistory.objects.filter(issue=issue).count() == 1  # only the creation row
 
     def test_history_is_append_only(self, issue):
         row = IssueStatusHistory.objects.get(issue=issue)
