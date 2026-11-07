@@ -6,6 +6,17 @@ from accounts.models import User
 PASSWORD = "Str0ng-Passw0rd!x"
 
 
+@pytest.fixture(autouse=True)
+def _isolate_cache_and_media(settings, tmp_path):
+    """Throttle counters live in the cache and uploads go to MEDIA_ROOT: keep both per-test."""
+    from django.core.cache import cache
+
+    cache.clear()
+    settings.MEDIA_ROOT = tmp_path / "media"
+    yield
+    cache.clear()
+
+
 @pytest.fixture
 def api():
     return APIClient()

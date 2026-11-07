@@ -104,12 +104,26 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# User uploads (issue photos). Local disk for now; swap STORAGES["default"] for object
+# storage (e.g. Supabase S3-compatible) at deployment time without touching app code.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+# Hard cap on non-file request bodies; uploaded files are size-checked in issues/images.py.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 1 * 1024 * 1024
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    # Scoped throttles are attached per-view in issues/throttles.py (POST only).
+    "DEFAULT_THROTTLE_RATES": {
+        "issue_create": "10/hour",
+        "comment_create": "30/hour",
+        "image_upload": "30/hour",
+        "content_report": "20/hour",
+    },
 }
 
 SIMPLE_JWT = {

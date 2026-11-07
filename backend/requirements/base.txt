@@ -5,3 +5,4 @@ drf-spectacular==0.28.0
 django-cors-headers==4.9.0
 dj-database-url==3.0.1
 psycopg[binary]==3.2.10
+Pillow==11.3.0
