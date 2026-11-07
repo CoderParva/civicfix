@@ -167,6 +167,66 @@ class TestListVisibility:
         assert (item["has_voted"], item["is_following"]) == (False, False)
 
 
+class TestPriorityFilter:
+    """GET /issues/?priority= -- same pattern as the category/status filters."""
+
+    @pytest.fixture
+    def mixed(self, citizen, make_issue):
+        return {
+            "low": make_issue(citizen, title="Low priority issue", priority="low"),
+            "medium": make_issue(citizen, title="Medium priority issue", priority="medium"),
+            "high": make_issue(citizen, title="High priority issue", priority="high"),
+            "critical": make_issue(citizen, title="Critical priority issue", priority="critical"),
+        }
+
+    @pytest.mark.parametrize("priority", ["low", "medium", "high", "critical"])
+    def test_returns_only_that_priority(self, api, mixed, priority):
+        res = api.get(reverse(LIST), {"priority": priority})
+        assert res.status_code == 200
+        assert [i["id"] for i in res.data["results"]] == [str(mixed[priority].pk)]
+        assert res.data["results"][0]["priority"] == priority
+
+    def test_without_the_param_nothing_is_filtered(self, api, mixed):
+        assert api.get(reverse(LIST)).data["count"] == 4
+
+    @pytest.mark.parametrize("bad", ["urgent", "HIGH", "", "1", "high,low"])
+    def test_invalid_value_is_400(self, api, mixed, bad):
+        res = api.get(reverse(LIST), {"priority": bad})
+        assert res.status_code == 400
+        assert "priority" in res.data
+        assert "low, medium, high, critical" in str(res.data["priority"])
+
+    def test_combines_with_status_and_category(self, api, citizen, make_issue, category):
+        match = make_issue(citizen, title="High and in progress", priority="high", status="in_progress")
+        make_issue(citizen, title="High but reported", priority="high")
+        make_issue(citizen, title="In progress but low", priority="low", status="in_progress")
+        res = api.get(reverse(LIST), {"priority": "high", "status": "in_progress", "category": category.pk})
+        assert [i["id"] for i in res.data["results"]] == [str(match.pk)]
+
+    def test_still_only_shows_public_issues(self, api, citizen, make_issue):
+        make_issue(citizen, title="Hidden high one", priority="high", approved=False)
+        make_issue(citizen, title="Private high one", priority="high", is_public=False)
+        visible = make_issue(citizen, title="Visible high one", priority="high")
+        res = api.get(reverse(LIST), {"priority": "high"})
+        assert [i["id"] for i in res.data["results"]] == [str(visible.pk)]
+
+    def test_works_with_mine_for_the_owner_only(self, api, citizen, other_citizen, make_issue):
+        mine = make_issue(citizen, title="My pending high one", priority="high", approved=False)
+        make_issue(other_citizen, title="Their pending high one", priority="high", approved=False)
+        api.force_authenticate(citizen)
+        res = api.get(reverse(LIST), {"mine": "true", "priority": "high"})
+        assert [i["id"] for i in res.data["results"]] == [str(mine.pk)]
+
+    def test_pagination_keeps_the_filter(self, api, citizen, make_issue):
+        for n in range(25):
+            make_issue(citizen, title=f"High number {n:02d} issue", priority="high")
+        make_issue(citizen, title="One low issue here", priority="low")
+        first = api.get(reverse(LIST), {"priority": "high"}).data
+        assert first["count"] == 25 and len(first["results"]) == 20 and "priority=high" in first["next"]
+        second = api.get(reverse(LIST), {"priority": "high", "page": 2}).data
+        assert len(second["results"]) == 5 and all(i["priority"] == "high" for i in second["results"])
+
+
 class TestDetail:
     def test_public_issue_visible_to_anyone(self, api, issue):
         res = api.get(detail(issue))

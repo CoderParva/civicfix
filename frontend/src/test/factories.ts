@@ -57,3 +57,17 @@ function b64url(value: unknown): string {
 export function fakeJwt(claims: { role: Role; email?: string; exp?: number }): string {
   return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ user_id: 'user-1', exp: 9999999999, ...claims })}.sig`
 }
+
+/** n public (approved) issues, newest first, numbered "Issue 01", "Issue 02"... */
+export function makePublicIssues(n: number, overrides: (index: number) => Partial<Issue> = () => ({})): Issue[] {
+  return Array.from({ length: n }, (_, i) =>
+    makeIssue({
+      title: `Public issue ${String(i + 1).padStart(2, '0')}`,
+      moderation_status: undefined,
+      is_public: undefined,
+      is_mine: false,
+      status: 'in_progress',
+      ...overrides(i),
+    }),
+  )
+}

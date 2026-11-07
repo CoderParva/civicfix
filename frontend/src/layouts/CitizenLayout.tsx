@@ -7,6 +7,7 @@ const ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/my-reports', label: 'My reports' },
   { to: '/report', label: 'Report an issue' },
+  { to: '/explore', label: 'Explore' },
 ]
 
 export function CitizenLayout() {

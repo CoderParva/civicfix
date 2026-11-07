@@ -64,3 +64,36 @@ export function issuesListHandler(issues: Issue[], pageSize = 20, onRequest?: (p
     })
   })
 }
+
+/**
+ * msw handler for the PUBLIC list: filters by category/status/priority and paginates the way the
+ * Django view does (PAGE_SIZE 20, 404 for a page past the end). `onRequest` sees every call.
+ */
+export function publicIssuesHandler(
+  issues: Issue[],
+  onRequest?: (request: { params: URLSearchParams; authorization: string | null }) => void,
+) {
+  return http.get(url('/issues/'), ({ request }) => {
+    const params = new URL(request.url).searchParams
+    onRequest?.({ params, authorization: request.headers.get('authorization') })
+    let rows = issues
+    const category = params.get('category')
+    const status = params.get('status')
+    const priority = params.get('priority')
+    if (category) rows = rows.filter((i) => String(i.category.id) === category)
+    if (status) rows = rows.filter((i) => i.status === status)
+    if (priority) rows = rows.filter((i) => i.priority === priority)
+    const page = Number(params.get('page') ?? '1')
+    const size = 20
+    if (page < 1 || (page - 1) * size >= Math.max(rows.length, 1)) {
+      return HttpResponse.json({ detail: 'Invalid page.' }, { status: 404 })
+    }
+    const next = page * size < rows.length ? url(`/issues/?page=${page + 1}`) : null
+    return HttpResponse.json({
+      count: rows.length,
+      next,
+      previous: page > 1 ? url(`/issues/?page=${page - 1}`) : null,
+      results: rows.slice((page - 1) * size, page * size),
+    })
+  })
+}

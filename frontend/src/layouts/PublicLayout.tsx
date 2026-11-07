@@ -10,12 +10,15 @@ export function PublicLayout() {
   // Landing here is where a user-initiated log out ends; from now on protected pages go to /login again.
   useEffect(() => acknowledgeSignOut(), [acknowledgeSignOut])
   const signedIn = status === 'authenticated'
-  const items: NavItem[] = signedIn
-    ? [{ to: roleHome(role), label: 'My account' }]
-    : [
-        { to: '/login', label: 'Log in' },
-        { to: '/register', label: 'Register' },
-      ]
+  const items: NavItem[] = [
+    { to: '/explore', label: 'Explore' },
+    ...(signedIn
+      ? [{ to: roleHome(role), label: 'My account' }]
+      : [
+          { to: '/login', label: 'Log in' },
+          { to: '/register', label: 'Register' },
+        ]),
+  ]
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar items={items} userName={signedIn ? user?.full_name : undefined} onLogout={logout} />

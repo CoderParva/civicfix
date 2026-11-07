@@ -64,6 +64,7 @@ class IssueListCreateView(generics.ListCreateAPIView):
             OpenApiParameter("mine", bool, description="Only my own issues, in any moderation state (auth required)."),
             OpenApiParameter("category", int, description="Filter by category id."),
             OpenApiParameter("status", str, description="Filter by issue status."),
+            OpenApiParameter("priority", str, description="Filter by priority: low, medium, high or critical."),
         ],
         responses=IssueSerializer(many=True),
     )
@@ -89,6 +90,10 @@ class IssueListCreateView(generics.ListCreateAPIView):
             if params["status"] not in Issue.Status.values:
                 raise ValidationError({"status": f"Must be one of: {', '.join(Issue.Status.values)}."})
             queryset = queryset.filter(status=params["status"])
+        if "priority" in params:
+            if params["priority"] not in Issue.Priority.values:
+                raise ValidationError({"priority": f"Must be one of: {', '.join(Issue.Priority.values)}."})
+            queryset = queryset.filter(priority=params["priority"])
         # Explicit order: aggregate annotations drop Meta.ordering, and pagination needs a stable one.
         return annotate_issues(queryset, user).order_by("-created_at", "pk")
 
