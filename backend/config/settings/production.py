@@ -17,3 +17,7 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# The Render free tier (0.1 vCPU / 512 MB) cannot run PyTorch. Pinned, not read from the environment,
+# so a stray AI_INFERENCE variable can never switch model loading on in production.
+AI_INFERENCE = "disabled"

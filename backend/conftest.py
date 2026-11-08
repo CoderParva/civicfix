@@ -17,6 +17,17 @@ def _isolate_cache_and_media(settings, tmp_path):
     cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _ai_off_by_default(settings):
+    """No test loads a real model by accident. AI tests opt in with the `ai_local` fixture (ai_engine/tests)."""
+    from ai_engine import backends
+
+    settings.AI_INFERENCE = "disabled"
+    backends.reset_backends()
+    yield
+    backends.reset_backends()
+
+
 @pytest.fixture
 def api():
     return APIClient()

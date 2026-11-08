@@ -1,0 +1,10 @@
+# Local-development AI inference ONLY. Never installed on the Render web service (0.1 vCPU / 512 MB
+# cannot run it; see CivicFix-Architecture-Plan.md, "AI inference never runs inside the Render web service").
+#
+# Installed OUTSIDE the image, into the bind-mounted ./.ai-libs, by scripts/install-ai-libs.sh, so the
+# multi-GB torch install lands on the project drive instead of growing the Docker disk.
+#
+# torch must come from the CPU-only index: the default PyPI Linux wheel drags in CUDA libraries (GBs).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
+sentence-transformers==6.2.0

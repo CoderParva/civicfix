@@ -206,6 +206,9 @@
 }
 .leaflet-container {
   font: inherit;
+  /* Leaflet's panes and controls use z-index 400-1000. Contain them in the map's own stacking context, or a
+     modal dialog (z-50) opened over a page with a map renders underneath the map. */
+  isolation: isolate;
 }
 
 /* ---- motion: one easing, short durations, and respect the user's setting ---- */
@@ -229,9 +232,11 @@
 @utility animate-fade {
   animation: fade 160ms ease-out both;
 }
+/* Scale only. Centring comes from the -translate-x/y-1/2 classes, which Tailwind v4 applies through the separate
+   `translate` property; repeating translate(-50%, -50%) here stacked on top of it and pushed dialogs up and left. */
 @keyframes pop {
-  from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
 }
 @utility animate-pop {
   animation: pop 200ms cubic-bezier(0.2, 0, 0, 1) both;

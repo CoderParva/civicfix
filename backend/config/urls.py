@@ -9,6 +9,7 @@ api_v1 = [
     path("", include("issues.urls")),
     path("", include("departments.urls")),
     path("", include("analytics.urls")),
+    path("", include("ai_engine.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("schema/swagger-ui/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 ]

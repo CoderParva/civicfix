@@ -13,6 +13,7 @@ import { Panel, PanelBody, PanelHeader } from '@/components/ui/panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PriorityBadge } from '@/features/issues/components/PriorityBadge'
 import { StatusBadge } from '@/features/issues/components/StatusBadge'
+import { AiAnalysisPanel } from '@/features/ai/AiAnalysisPanel'
 import { planAdminActions } from '@/features/staff/adminActions'
 import { AssignDialog } from '@/features/staff/AssignDialog'
 import {
@@ -251,6 +252,7 @@ export function AdminIssuePage() {
         <div className="flex flex-col gap-6 lg:sticky lg:top-8">
           <ModerationPanel issue={data} />
           <AssignmentPanel issue={data} />
+          <AiAnalysisPanel issueId={data.id} currentPriority={data.priority} reportedCategory={data.category.name} />
           <Panel aria-label="Reporter">
             <PanelHeader title="Reporter" />
             <PanelBody className="flex items-center gap-4 pt-4">

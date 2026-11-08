@@ -163,6 +163,7 @@ class IssueImageCreateView(APIView):
         serializer = ImageUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         image = services.add_image(issue_id=issue.pk, actor=request.user, upload=serializer.validated_data["image"])
+        services.analyze_photo(issue.pk)  # best effort, after the upload is safely stored
         return Response(IssueImageSerializer(image, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 

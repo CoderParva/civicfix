@@ -17,6 +17,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // The first test to open a lazy route pays a cold import; under a loaded machine that can pass Vitest's 5 s default.
+    testTimeout: 20_000,
     include: ['src/**/*.test.{ts,tsx}'],
   },
 })

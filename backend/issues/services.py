@@ -73,7 +73,22 @@ def create_issue(*, reporter, category, title, description, latitude, longitude,
         changed_by=reporter,
         reason="Issue reported",
     )
+    _run_ai_analysis(issue)
     return issue
+
+
+def _run_ai_analysis(issue):
+    """Inline, cheap AI stages (priority rules, duplicate check). Best effort: it must never fail a report."""
+    from ai_engine import services as ai_services  # imported here: ai_engine depends on issues, not vice versa
+
+    ai_services.safely(ai_services.analyze_new_issue, issue)
+
+
+def analyze_photo(issue_id):
+    """Record what the image model thinks of the issue's first photo. Best effort, never raises."""
+    from ai_engine import services as ai_services
+
+    ai_services.safely(ai_services.analyze_issue_image, issue_id)
 
 
 @transaction.atomic

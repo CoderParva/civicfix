@@ -23,6 +23,9 @@ services:
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     env_file:
       - .env
+    environment:
+      # "local" runs the real AI models when installed (scripts/install-ai-libs.sh); "disabled" behaves like production.
+      AI_INFERENCE: ${AI_INFERENCE:-local}
     ports:
       - "8000:8000"
     volumes:

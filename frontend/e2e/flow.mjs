@@ -150,6 +150,25 @@ const waitPainted = async (region, label, minBytes = 25_000) => {
   assert.ok(bytes > minBytes, `${label} still blank after 30s (${bytes} bytes)`)
 }
 
+
+/**
+ * Click "Submit report". Earlier runs leave public reports at these coordinates, so the "already reported
+ * nearby" warning may interrupt: that is the feature working, and "Submit anyway" must always get through.
+ */
+const submitReport = async (p) => {
+  await p.getByRole('button', { name: 'Submit report' }).click()
+  const warning = p.getByRole('dialog', { name: /already reported/i })
+  const landed = p.getByRole('heading', { name: 'My reports' })
+  const outcome = await Promise.any([
+    warning.waitFor({ timeout: 20000 }).then(() => 'warned'),
+    landed.waitFor({ timeout: 20000 }).then(() => 'sent'),
+  ])
+  if (outcome === 'warned') {
+    console.log('      (the "already reported nearby" warning appeared; chose "Submit anyway")')
+    await warning.getByRole('button', { name: 'Submit anyway' }).click()
+  }
+}
+
 let categories = []
 
 try {
@@ -196,7 +215,7 @@ try {
     await page.getByLabel('Address (optional)').fill('MG Road, Indore')
     await page.getByLabel('Upload photos').setInputFiles({ name: 'pothole.png', mimeType: 'image/png', buffer: makePng() })
     await page.getByAltText('Preview of pothole.png').waitFor()
-    await page.getByRole('button', { name: 'Submit report' }).click()
+    await submitReport(page)
     await page.getByRole('heading', { name: 'My reports' }).waitFor()
     assert.match(await page.getByRole('alert').innerText(), /submitted/i)
   })
@@ -472,7 +491,7 @@ try {
     await page.getByLabel('Title').fill(`E2E map-picked ${stamp}`)
     await page.getByLabel('Description').fill('Location chosen by clicking on the map, then nudged by typing a latitude.')
     await page.getByLabel('Category').selectOption({ label: 'Garbage' })
-    await page.getByRole('button', { name: 'Submit report' }).click()
+    await submitReport(page)
     await page.getByRole('heading', { name: 'My reports' }).waitFor()
 
     // The backend stored exactly what the form held

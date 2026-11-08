@@ -123,6 +123,10 @@ REST_FRAMEWORK = {
         "comment_create": "30/hour",
         "image_upload": "30/hour",
         "content_report": "20/hour",
+        # AI helpers are cheap/no-ops in production but real inference in dev; keep them bounded either way.
+        "ai_classify": "60/hour",
+        "ai_duplicates": "120/hour",
+        "ai_priority": "120/hour",
     },
 }
 
@@ -151,3 +155,23 @@ SPECTACULAR_SETTINGS = {
 }
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+
+
+# --- AI (ai_engine) --------------------------------------------------------------------------
+# "local": use the real models when they are installed (development; see scripts/install-ai-libs.sh).
+# "disabled": never import them; every AI suggestion reports "unavailable" and the app carries on.
+# The safe value is the default here; development.py opts in, production.py pins it to "disabled".
+AI_INFERENCE = "disabled"
+AI_LIBS_DIR = Path(os.environ.get("AI_LIBS_DIR", BASE_DIR / ".ai-libs"))
+AI_MODEL_CACHE_DIR = Path(os.environ.get("AI_MODEL_CACHE_DIR", BASE_DIR / ".model-cache"))
+AI_IMAGE_MODEL = "sentence-transformers/clip-ViT-B-32"  # CLIP: zero-shot image -> category
+AI_TEXT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # semantic similarity of report text
+AI_RETRY_SECONDS = 60  # after a failed model load, wait this long before trying again
+# Below this top-class probability (or when the top two are closer than the margin) the answer is
+# "uncertain": the citizen picks the category themselves. Nothing is ever auto-assigned.
+AI_CONFIDENCE_THRESHOLD = float(os.environ.get("AI_CONFIDENCE_THRESHOLD", "0.5"))
+AI_CONFIDENCE_MARGIN = float(os.environ.get("AI_CONFIDENCE_MARGIN", "0.1"))
+AI_DUPLICATE_RADIUS_M = 150
+AI_DUPLICATE_MAX_AGE_DAYS = 180
+AI_DUPLICATE_MIN_SCORE = 0.5  # below this a nearby report is not worth showing
+AI_DUPLICATE_LIKELY_SCORE = 0.7

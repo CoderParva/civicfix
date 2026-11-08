@@ -5,3 +5,6 @@ __pycache__/
 staticfiles/
 .venv/
 media/
+.ai-libs/
+.model-cache/
+.ai-install.log

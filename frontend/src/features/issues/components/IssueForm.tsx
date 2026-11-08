@@ -9,9 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
+import { DuplicateWarning } from '@/features/ai/DuplicateWarning'
+import { PhotoSuggestion } from '@/features/ai/PhotoSuggestion'
 import { formatCoordinate, parseCoordinatePair } from '@/features/map/coordinates'
 import { useGeolocation } from '@/hooks/useGeolocation'
+import { aiApi } from '@/services/aiApi'
 import { getApiErrorMessage, getFieldErrors } from '@/services/apiClient'
+import type { DuplicateMatch } from '@/types/ai'
 
 import { useCategories, useSubmitReport, type SubmitReportResult } from '../hooks'
 import { reportIssueSchema, type ReportIssueInput, type ReportIssueValues } from '../schemas'
@@ -30,6 +34,8 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
   const { locate, locating, error: geoError } = useGeolocation()
   const [photos, setPhotos] = useState<File[]>([])
   const [serverError, setServerError] = useState<string | null>(null)
+  // Set while the "this looks like something already reported" dialog is open: the matches and the held-back report.
+  const [similar, setSimilar] = useState<{ matches: DuplicateMatch[]; values: ReportIssueValues } | null>(null)
 
   const {
     register,
@@ -60,7 +66,7 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
   // The map pin follows whatever is in the fields, however it got there (typing, GPS, a map click).
   const pin = parseCoordinatePair(watch('latitude'), watch('longitude'))
 
-  const submit = handleSubmit(async (values) => {
+  async function send(values: ReportIssueValues) {
     setServerError(null)
     try {
       const result = await submitReport.mutateAsync({
@@ -87,7 +93,34 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
       }
       if (!mapped) setServerError(getApiErrorMessage(error, 'Could not submit your report. Please try again.'))
     }
+  }
+
+  const submit = handleSubmit(async (values) => {
+    setServerError(null)
+    // Look for the same problem already reported nearby. This is a courtesy: if the check fails or finds
+    // nothing, the report goes straight through. If it finds something, the person decides.
+    const found = await aiApi
+      .findDuplicates({
+        latitude: values.latitude,
+        longitude: values.longitude,
+        title: values.title,
+        description: values.description,
+        category: values.category,
+      })
+      .catch(() => null)
+    if (found && found.matches.length > 0) {
+      setSimilar({ matches: found.matches, values })
+      return
+    }
+    await send(values)
   })
+
+  async function submitAnyway() {
+    const held = similar
+    if (!held) return
+    setSimilar(null)
+    await send(held.values)
+  }
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-5" aria-label="Report an issue">
@@ -159,11 +192,24 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Photos (optional)</span>
         <PhotoDropzone files={photos} onChange={setPhotos} />
+        <PhotoSuggestion
+          photo={photos[0] ?? null}
+          chosen={watch('category')}
+          categories={categories.data ?? []}
+          onChoose={(id) => setValue('category', String(id), { shouldValidate: true, shouldDirty: true })}
+        />
       </div>
 
-      <Button type="submit" size="lg" disabled={isSubmitting}>
-        {isSubmitting ? 'Submitting…' : 'Submit report'}
+      <Button type="submit" size="lg" disabled={isSubmitting || submitReport.isPending}>
+        {isSubmitting || submitReport.isPending ? 'Submitting…' : 'Submit report'}
       </Button>
+
+      <DuplicateWarning
+        matches={similar?.matches ?? null}
+        submitting={submitReport.isPending}
+        onSubmitAnyway={submitAnyway}
+        onDismiss={() => setSimilar(null)}
+      />
     </form>
   )
 }

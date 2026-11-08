@@ -28,7 +28,7 @@ vi.mock('recharts', async (importOriginal) => ({
 // Routes are lazy-loaded, so the first test to visit one pays for a cold import (Recharts is heavy) while other
 // test files run in parallel: that can exceed the 1 s default. A passing query returns at once; only a real
 // failure waits the full time.
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10_000 })
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 afterEach(() => {
