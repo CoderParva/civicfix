@@ -1,0 +1,46 @@
+# Keeps the free tiers awake. Supabase pauses a free project after 7 days without activity, and Render
+# spins a free web service down after 15 minutes. Every 2 days this wakes the API, which makes one real
+# database round-trip (GET /api/v1/health/?db=1), which counts as activity for Supabase.
+#
+# Repository settings > Secrets and variables > Actions:
+#   variable  API_BASE_URL        e.g. https://civicfix-api.onrender.com        (required)
+#   secret    SUPABASE_URL        e.g. https://<project-ref>.supabase.co        (optional, extra ping)
+#   secret    SUPABASE_ANON_KEY   the project's public anon key                 (optional, extra ping)
+#
+# GitHub disables scheduled workflows on a repository with no activity for 60 days: push a commit now
+# and then (or re-enable it under the Actions tab).
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "17 5 */2 * *" # 05:17 UTC every second day
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wake the API and touch the database
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then echo "::error::Set the API_BASE_URL repository variable"; exit 1; fi
+          # A sleeping Render instance needs up to ~60 s to boot, so allow a long first attempt and retry.
+          curl --fail --silent --show-error --location \
+            --max-time 120 --retry 5 --retry-delay 20 --retry-all-errors \
+            "${API_BASE_URL%/}/api/v1/health/?db=1" | tee /dev/stderr | grep -q '"database": *"ok"'
+
+      - name: Touch Supabase directly (optional)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then echo "No Supabase secrets set; skipping."; exit 0; fi
+          # Any response (even 401/404) is API activity; only a network failure should fail the job.
+          code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 \
+            -H "apikey: $SUPABASE_ANON_KEY" "${SUPABASE_URL%/}/rest/v1/")
+          echo "Supabase REST answered HTTP $code"
+          [ "$code" != "000" ]

@@ -123,6 +123,10 @@ REST_FRAMEWORK = {
         "comment_create": "30/hour",
         "image_upload": "30/hour",
         "content_report": "20/hour",
+        # Unauthenticated endpoints, per client IP: slow password guessing and account spam.
+        "auth_login": "10/minute",
+        "auth_register": "10/hour",
+        "auth_refresh": "120/hour",
         # AI helpers are cheap/no-ops in production but real inference in dev; keep them bounded either way.
         "ai_classify": "60/hour",
         "ai_duplicates": "120/hour",
@@ -151,6 +155,7 @@ SPECTACULAR_SETTINGS = {
         "IssueStatusEnum": "issues.models.Issue.Status",
         "AssignmentStatusEnum": "departments.models.IssueAssignment.Status",
         "ModerationStatusEnum": "issues.models.Issue.ModerationStatus",
+        "PriorityEnum": "issues.models.Issue.Priority",  # also the choices of AIAnalysis.suggested_priority
     },
 }
 

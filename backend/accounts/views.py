@@ -5,11 +5,13 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .serializers import LoginSerializer, RegisterSerializer, UserSerializer
+from .throttles import LoginThrottle, RefreshThrottle, RegisterThrottle
 
 
 class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [RegisterThrottle]
     serializer_class = RegisterSerializer
 
     @extend_schema(responses={201: UserSerializer})
@@ -21,11 +23,12 @@ class RegisterView(generics.CreateAPIView):
 
 
 class LoginView(TokenObtainPairView):
+    throttle_classes = [LoginThrottle]
     serializer_class = LoginSerializer
 
 
 class RefreshView(TokenRefreshView):
-    pass
+    throttle_classes = [RefreshThrottle]
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):

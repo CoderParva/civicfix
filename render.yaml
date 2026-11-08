@@ -1,0 +1,44 @@
+# Render Blueprint for the CivicFix API (free web service). Create it from the Render dashboard:
+# New > Blueprint > pick this repo. Variables marked `sync: false` are asked for once, in the dashboard,
+# and never live in git. The full checklist and where each value comes from is in DEPLOYMENT.md.
+services:
+  - type: web
+    name: civicfix-api
+    runtime: docker
+    plan: free
+    # Pick the region closest to your Supabase project (the DB round-trip dominates latency).
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Free instances sleep after 15 min idle; /health/ is also what the GitHub keep-alive job calls.
+    healthCheckPath: /api/v1/health/
+    autoDeploy: true
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: AI_INFERENCE
+        value: disabled # explicit, although production.py pins it anyway (0.1 vCPU / 512 MB cannot run PyTorch)
+      - key: DJANGO_SECRET_KEY
+        generateValue: true # Render generates a long random value once
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false # e.g. civicfix-api.onrender.com  (Render's own hostname is added automatically)
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false # the Cloudflare Pages origin, e.g. https://civicfix.pages.dev  (https, no trailing slash)
+      - key: DATABASE_URL
+        sync: false # Supabase *pooler* URL, Session mode, with ?sslmode=require (see DEPLOYMENT.md)
+      - key: MEDIA_S3_ENDPOINT_URL
+        sync: false # https://<project-ref>.storage.supabase.co/storage/v1/s3
+      - key: MEDIA_S3_REGION
+        sync: false # the project's region, e.g. ap-south-1
+      - key: MEDIA_S3_ACCESS_KEY_ID
+        sync: false
+      - key: MEDIA_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: MEDIA_S3_BUCKET
+        value: issue-photos
+      - key: MEDIA_PUBLIC_BASE_URL
+        sync: false # https://<project-ref>.supabase.co/storage/v1/object/public/issue-photos
+      - key: WEB_CONCURRENCY
+        value: "1" # one worker + threads: in-memory rate-limit counters stay consistent
+      - key: PYTHON_VERSION
+        value: "3.12"

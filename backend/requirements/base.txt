@@ -6,3 +6,5 @@ django-cors-headers==4.9.0
 dj-database-url==3.0.1
 psycopg[binary]==3.2.10
 Pillow==11.3.0
+# S3-compatible object storage for issue photos (Supabase Storage in production; see config/settings/production.py)
+django-storages[s3]==1.14.6

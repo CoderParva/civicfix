@@ -2,6 +2,7 @@ from io import BytesIO
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
@@ -26,7 +27,7 @@ class ClassifyView(APIView):
     permission_classes = [IsCitizen]
     throttle_classes = [AIClassifyThrottle]
 
-    @extend_schema(request={"multipart/form-data": ImageUploadSerializer})
+    @extend_schema(request={"multipart/form-data": ImageUploadSerializer}, responses=OpenApiTypes.OBJECT)
     def post(self, request):
         serializer = ImageUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -42,7 +43,7 @@ class DuplicatesView(APIView):
     permission_classes = [IsCitizen | IsSuperAdmin]
     throttle_classes = [AIDuplicatesThrottle]
 
-    @extend_schema(request=DuplicateCheckSerializer)
+    @extend_schema(request=DuplicateCheckSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request):
         serializer = DuplicateCheckSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -80,7 +81,7 @@ class PriorityView(APIView):
     permission_classes = [IsCitizen | IsSuperAdmin]
     throttle_classes = [AIPriorityThrottle]
 
-    @extend_schema(request=PriorityRequestSerializer)
+    @extend_schema(request=PriorityRequestSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request):
         serializer = PriorityRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

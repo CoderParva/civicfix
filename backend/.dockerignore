@@ -1,0 +1,14 @@
+# Keep the build context (and so the image) small and free of local-only or secret files.
+.git
+.env
+.venv
+__pycache__/
+*.pyc
+.pytest_cache/
+# local AI install and model cache (~GBs; production never loads them)
+.ai-libs/
+.model-cache/
+.ai-install.log
+# uploaded files live in object storage in production
+media/
+staticfiles/

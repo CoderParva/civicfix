@@ -10,10 +10,12 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY requirements/ requirements/
-ARG REQUIREMENTS=dev
+# Production by default (what Render builds); docker-compose passes REQUIREMENTS=dev for local work.
+ARG REQUIREMENTS=prod
 RUN pip install --no-cache-dir -r requirements/${REQUIREMENTS}.txt
 
 COPY . .
 
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# migrate + collectstatic + gunicorn; see scripts/start.sh. docker-compose overrides this with runserver.
+CMD ["sh", "scripts/start.sh"]

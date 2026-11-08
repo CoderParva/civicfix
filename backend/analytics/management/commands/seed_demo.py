@@ -17,7 +17,7 @@ from io import BytesIO
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
@@ -131,9 +131,19 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--count", type=int, default=160, help="number of issues to create (default 160)")
         parser.add_argument("--seed", type=int, default=2026, help="random seed, for reproducible data")
+        parser.add_argument(
+            "--password",
+            help="password for every demo account. Required outside DEBUG: the default is public (it is in the repo), "
+            "so it must never protect accounts on a deployed site.",
+        )
 
     @transaction.atomic  # all or nothing: a failure leaves no half-seeded data behind
-    def handle(self, *args, count, seed, **options):
+    def handle(self, *args, count, seed, password=None, **options):
+        from django.conf import settings
+
+        if password is None and not settings.DEBUG:
+            raise CommandError("Pass --password: the built-in demo password is public and cannot be used on a deployed database.")
+        self.password = password or PASSWORD
         if Issue.objects.filter(reporter__email__endswith=f"@{DOMAIN}").exists():
             self.stdout.write("Demo data already present: nothing to do.")
             return
@@ -159,7 +169,7 @@ class Command(BaseCommand):
                 officers[name].append(
                     existing
                     or dept_services.create_officer(
-                        email=email, full_name=person, password=PASSWORD, department=department, employee_reference=ref
+                        email=email, full_name=person, password=self.password, department=department, employee_reference=ref
                     )
                 )
         citizens = [
@@ -176,15 +186,14 @@ class Command(BaseCommand):
 
         self._social(rng, now, citizens)
         self.stdout.write(self.style.SUCCESS(f"Seeded {created} issues, {len(citizens)} citizens, {sum(len(v) for v in officers.values())} officers."))
-        self.stdout.write(f"Logins (password for all: {PASSWORD})")
+        self.stdout.write(f"Logins (password for all: {'the one you passed' if password else PASSWORD})")
         self.stdout.write(f"  admin   : admin@{DOMAIN}")
         for name, people in officers.items():
             self.stdout.write(f"  officer : {people[0].user.email}  ({name})")
         self.stdout.write(f"  citizen : {citizens[0].email}")
 
-    @staticmethod
-    def _user(email, full_name, **extra):
-        return User.objects.filter(email=email).first() or User.objects.create_user(email, PASSWORD, full_name=full_name, **extra)
+    def _user(self, email, full_name, **extra):
+        return User.objects.filter(email=email).first() or User.objects.create_user(email, self.password, full_name=full_name, **extra)
 
     # ------------------------------------------------------------------------------------------
 

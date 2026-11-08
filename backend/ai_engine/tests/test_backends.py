@@ -59,13 +59,8 @@ def test_a_failed_load_is_not_retried_on_every_request_but_is_retried_later(sett
     assert backends.get_text_embedder() is not None and len(attempts) == 2
 
 
-def test_production_settings_pin_inference_off_even_if_the_environment_asks_otherwise():
-    code = (
-        "import os; os.environ['DJANGO_SECRET_KEY']='x'; os.environ['AI_INFERENCE']='local';"
-        "from config.settings import production; print(production.AI_INFERENCE)"
-    )
-    out = subprocess.run([sys.executable, "-c", code], cwd=BACKEND_DIR, capture_output=True, text=True, timeout=60)
-    assert out.stdout.strip() == "disabled", out.stderr
+# (Production pinning AI off is tested in config/tests/test_production_settings.py, which supplies the full
+# environment production now requires.)
 
 
 def test_development_defaults_to_local_and_can_be_switched_off_by_environment():

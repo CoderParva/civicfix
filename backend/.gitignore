@@ -8,3 +8,5 @@ media/
 .ai-libs/
 .model-cache/
 .ai-install.log
+.env.*
+!.env.example
