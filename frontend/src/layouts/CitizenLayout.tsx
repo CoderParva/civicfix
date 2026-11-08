@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, ScrollRestoration } from 'react-router-dom'
 
 import { Navbar, type NavItem } from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
@@ -20,6 +20,7 @@ export function CitizenLayout() {
         userName={user?.full_name}
         onLogout={logout}
       />
+      <ScrollRestoration />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
         <Outlet />
       </main>

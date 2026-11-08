@@ -2,8 +2,9 @@ import type { RouteObject } from 'react-router-dom'
 
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
+import { adminRoutes } from './admin'
 import { citizenRoutes } from './citizen'
+import { officerRoutes } from './officer'
 import { publicRoutes } from './public'
 
-// officer.tsx / admin.tsx join this list in later phases.
-export const appRoutes: RouteObject[] = [...publicRoutes, ...citizenRoutes, { path: '*', element: <NotFoundPage /> }]
+export const appRoutes: RouteObject[] = [...publicRoutes, ...citizenRoutes, ...officerRoutes, ...adminRoutes, { path: '*', element: <NotFoundPage /> }]

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, ScrollRestoration } from 'react-router-dom'
 
 import { Navbar, type NavItem } from '@/components/Navbar'
 import { useAuth } from '@/context/AuthContext'
@@ -22,6 +22,7 @@ export function PublicLayout() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar items={items} userName={signedIn ? user?.full_name : undefined} onLogout={logout} />
+      <ScrollRestoration />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
         <Outlet />
       </main>

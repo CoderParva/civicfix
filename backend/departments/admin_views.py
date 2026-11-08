@@ -14,8 +14,10 @@ from issues.models import Issue, IssueComment
 from issues.selectors import annotate_issues
 
 from . import services
+from .ordering import ADMIN_KEYS, apply_ordering
 from .models import Department, IssueAssignment
 from .serializers import (
+    AdminIssueDetailSerializer,
     AdminIssueSerializer,
     AssignSerializer,
     DepartmentSerializer,
@@ -50,6 +52,7 @@ class AdminIssueListView(generics.ListAPIView):
             OpenApiParameter("status", str),
             OpenApiParameter("category", int),
             OpenApiParameter("flagged", bool, description="Only issues with at least one content report."),
+            OpenApiParameter("ordering", str, description="Sort key, optionally prefixed with '-': created_at, title, status, priority, votes, reports."),
         ]
     )
     def get(self, request, *args, **kwargs):
@@ -73,7 +76,18 @@ class AdminIssueListView(generics.ListAPIView):
                 raise ValidationError({"category": "Must be an integer id."})
         if params.get("flagged", "").lower() in TRUTHY:
             queryset = queryset.filter(report_count__gt=0)
-        return queryset.order_by("-created_at", "pk")
+        return apply_ordering(queryset, params.get("ordering"), ADMIN_KEYS)
+
+
+class AdminIssueDetailView(APIView):
+    """One issue in any moderation state, with its full status history."""
+
+    permission_classes = [IsSuperAdmin]
+
+    @extend_schema(responses=AdminIssueDetailSerializer)
+    def get(self, request, pk):
+        issue = get_object_or_404(_admin_issues(request.user).prefetch_related("status_history__changed_by"), pk=pk)
+        return Response(AdminIssueDetailSerializer(issue, context={"request": request}).data)
 
 
 class _AdminIssueAction(APIView):

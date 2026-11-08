@@ -1,22 +1,23 @@
-import { Badge } from '@/components/ui/badge'
 import type { IssueStatus } from '@/types/api'
 import { cn } from '@/utils/cn'
 
-const STATUS: Record<IssueStatus, { label: string; className: string }> = {
-  reported: { label: 'Reported', className: 'border-slate-300 bg-slate-100 text-slate-800' },
-  under_review: { label: 'Under review', className: 'border-sky-300 bg-sky-100 text-sky-900' },
-  assigned: { label: 'Assigned', className: 'border-indigo-300 bg-indigo-100 text-indigo-900' },
-  in_progress: { label: 'In progress', className: 'border-amber-300 bg-amber-100 text-amber-900' },
-  resolved: { label: 'Resolved', className: 'border-emerald-300 bg-emerald-100 text-emerald-900' },
-  reopened: { label: 'Reopened', className: 'border-orange-300 bg-orange-100 text-orange-900' },
-  rejected: { label: 'Rejected', className: 'border-rose-300 bg-rose-100 text-rose-900' },
-}
+import { STATUS_META } from '../statusMeta'
 
-export function StatusBadge({ status }: { status: IssueStatus }) {
-  const { label, className } = STATUS[status] ?? { label: status, className: '' }
+/** Icon + label, coloured by the status tone. Never colour alone, so it reads without colour vision. */
+export function StatusBadge({ status, className }: { status: IssueStatus; className?: string }) {
+  const meta = STATUS_META[status]
+  const Icon = meta?.icon
   return (
-    <Badge variant="outline" className={cn(className)} data-status={status}>
-      {label}
-    </Badge>
+    <span
+      data-tone={status}
+      data-status={status}
+      className={cn(
+        'tone-chip inline-flex h-6 w-fit shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap',
+        className,
+      )}
+    >
+      {Icon && <Icon aria-hidden className={cn('size-3.5', status === 'in_progress' && 'motion-safe:animate-spin [animation-duration:2.4s]')} />}
+      {meta?.label ?? status}
+    </span>
   )
 }

@@ -15,11 +15,13 @@ from issues.serializers import IssueImageSerializer
 from issues.throttles import ImageUploadThrottle
 
 from . import services
+from .ordering import OFFICER_KEYS, apply_ordering
 from .models import IssueAssignment
 from .selectors import issues_assigned_to, officer_profile_of
 from .serializers import (
     DepartmentNoteSerializer,
     NoteCreateSerializer,
+    OfficerIssueDetailSerializer,
     OfficerIssueSerializer,
     ReasonSerializer,
     ResolutionImageUploadSerializer,
@@ -42,7 +44,12 @@ class OfficerIssueListView(generics.ListAPIView):
     permission_classes = [IsAssignedDepartment]
     serializer_class = OfficerIssueSerializer
 
-    @extend_schema(parameters=[OpenApiParameter("status", str, description="Filter by issue status.")])
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("status", str, description="Filter by issue status."),
+            OpenApiParameter("ordering", str, description="Sort key, optionally prefixed with '-': created_at, title, status, priority, votes."),
+        ]
+    )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
@@ -54,7 +61,7 @@ class OfficerIssueListView(generics.ListAPIView):
                 raise ValidationError({"status": f"Must be one of: {', '.join(Issue.Status.values)}."})
             queryset = queryset.filter(status=value)
         queryset = annotate_issues(queryset, self.request.user).prefetch_related(ASSIGNMENT_PREFETCH)
-        return queryset.order_by("-created_at", "pk")
+        return apply_ordering(queryset, self.request.query_params.get("ordering"), OFFICER_KEYS)
 
 
 class _OfficerIssueView(APIView):
@@ -64,6 +71,18 @@ class _OfficerIssueView(APIView):
         issue = get_object_or_404(Issue, pk=pk)
         self.check_object_permissions(self.request, issue)  # 403 unless it is in this officer's department
         return issue
+
+
+class OfficerIssueDetailView(_OfficerIssueView):
+    """One issue in the officer's department queue, with its full status history."""
+
+    @extend_schema(responses=OfficerIssueDetailSerializer)
+    def get(self, request, pk):
+        issue = self.get_issue(pk)  # 403 for another department's issue
+        queryset = annotate_issues(Issue.objects.filter(pk=issue.pk), request.user).prefetch_related(
+            ASSIGNMENT_PREFETCH, "status_history__changed_by"
+        )
+        return Response(OfficerIssueDetailSerializer(queryset.get(), context={"request": request}).data)
 
 
 class OfficerAcceptView(_OfficerIssueView):

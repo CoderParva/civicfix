@@ -221,11 +221,11 @@ try {
 
   await step('backend moves the issue forward (admin approve+assign to a NEW officer, officer accepts) and 3 map issues go public', async () => {
     const admin = (await api('POST', '/auth/login/', { body: ADMIN })).access
+    // One dedicated department for all E2E data, so seeded demo departments never fill up with test issues.
     const departments = (await api('GET', '/admin/departments/', { token: admin })).results
-    let department = departments.find((d) => d.is_active)
-    if (!department) {
-      department = await api('POST', '/admin/departments/', { token: admin, body: { name: `E2E Dept ${stamp}`, city: 'Indore' } })
-    }
+    const department =
+      departments.find((d) => d.name === 'E2E Test Dept' && d.is_active) ??
+      (await api('POST', '/admin/departments/', { token: admin, body: { name: 'E2E Test Dept', city: 'Indore' } }))
     const officer = await api('POST', '/admin/officers/', {
       token: admin,
       body: { ...officerLogin, full_name: 'E2E Officer', department: department.id, employee_reference: `E2E-${stamp}` },

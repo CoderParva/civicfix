@@ -9,6 +9,7 @@ router.register("admin/departments", admin_views.DepartmentViewSet, basename="ad
 urlpatterns = [
     # --- officer ---
     path("officer/issues/", officer_views.OfficerIssueListView.as_view(), name="officer-issue-list"),
+    path("officer/issues/<uuid:pk>/", officer_views.OfficerIssueDetailView.as_view(), name="officer-issue-detail"),
     path("officer/issues/<uuid:pk>/accept/", officer_views.OfficerAcceptView.as_view(), name="officer-accept"),
     path("officer/issues/<uuid:pk>/reject/", officer_views.OfficerRejectView.as_view(), name="officer-reject"),
     path("officer/issues/<uuid:pk>/resolve/", officer_views.OfficerResolveView.as_view(), name="officer-resolve"),
@@ -25,6 +26,7 @@ urlpatterns = [
     # It needs a real duplicate_score per issue pair, which only exists once the AI engine
     # (Phase 7, ai_engine.AIAnalysis.duplicate_score) is built. Adding the route now would mean
     # inventing a score, which the plan forbids ("no hardcoded numbers"). Add it in Phase 7.
+    path("admin/issues/<uuid:pk>/", admin_views.AdminIssueDetailView.as_view(), name="admin-issue-detail"),
     path("admin/issues/<uuid:pk>/approve/", admin_views.AdminApproveView.as_view(), name="admin-approve"),
     path("admin/issues/<uuid:pk>/reject/", admin_views.AdminRejectView.as_view(), name="admin-reject"),
     path("admin/issues/<uuid:pk>/assign/", admin_views.AdminAssignView.as_view(), name="admin-assign"),

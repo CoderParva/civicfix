@@ -1,4 +1,4 @@
-import type { Category, CreateIssuePayload, Issue, IssueImage, Paginated } from '@/types/api'
+import type { Category, CreateIssuePayload, Issue, IssueComment, IssueImage, Paginated } from '@/types/api'
 
 import { api } from './apiClient'
 
@@ -51,6 +51,10 @@ export const issuesApi = {
 
   /** All public issues matching the filters (for the map and for keyword search), capped. */
   listPublicAll: (params: IssueListParams, maxPages = 25) => fetchAllPages(params, maxPages),
+
+  /** Comments an issue shows publicly (hidden ones are excluded by the API). */
+  listComments: (id: string) =>
+    api.get<Paginated<IssueComment>>(`/issues/${id}/comments/`).then((r) => r.data.results),
 
   getIssue: (id: string) => api.get<Issue>(`/issues/${id}/`).then((r) => r.data),
 

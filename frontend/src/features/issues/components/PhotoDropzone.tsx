@@ -9,10 +9,12 @@ import { MAX_PHOTOS, validatePhoto } from '../schemas'
 interface PhotoDropzoneProps {
   files: File[]
   onChange: (files: File[]) => void
+  /** How many photos may be selected (default 5). */
+  max?: number
 }
 
 /** Drag-and-drop (or click) photo picker with previews. Validates type/size like the server does. */
-export function PhotoDropzone({ files, onChange }: PhotoDropzoneProps) {
+export function PhotoDropzone({ files, onChange, max = MAX_PHOTOS }: PhotoDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [problems, setProblems] = useState<string[]>([])
@@ -26,7 +28,7 @@ export function PhotoDropzone({ files, onChange }: PhotoDropzoneProps) {
     for (const file of Array.from(incoming)) {
       const problem = validatePhoto(file)
       if (problem) rejected.push(problem)
-      else if (files.length + accepted.length >= MAX_PHOTOS) rejected.push(`${file.name}: at most ${MAX_PHOTOS} photos`)
+      else if (files.length + accepted.length >= max) rejected.push(`${file.name}: at most ${max} ${max === 1 ? 'photo' : 'photos'}`)
       else accepted.push(file)
     }
     setProblems(rejected)
@@ -58,7 +60,7 @@ export function PhotoDropzone({ files, onChange }: PhotoDropzoneProps) {
         <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
           Choose photos
         </Button>
-        <p className="text-xs text-muted-foreground">JPEG, PNG or WebP · up to 5 MB each · max {MAX_PHOTOS}</p>
+        <p className="text-xs text-muted-foreground">JPEG, PNG or WebP · up to 5 MB each · max {max}</p>
         <input
           ref={inputRef}
           type="file"

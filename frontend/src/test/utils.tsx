@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
+import { Toaster } from 'sonner'
 
 import { AuthProvider } from '@/context/AuthContext'
 import { appRoutes } from '@/routes'
@@ -26,6 +27,7 @@ export function renderApp(route = '/') {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RouterProvider router={router} />
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>,
   )

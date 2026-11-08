@@ -10,6 +10,8 @@ from rest_framework import serializers
 from accounts.serializers import RegisterSerializer
 from issues.serializers import IssueSerializer
 
+from issues.models import IssueStatusHistory
+
 from .models import Department, DepartmentNote, IssueAssignment, OfficerProfile
 
 
@@ -44,21 +46,27 @@ class DepartmentSerializer(serializers.ModelSerializer):
 class AssignmentSerializer(serializers.ModelSerializer):
     department = serializers.SerializerMethodField()
     officer = OfficerSummarySerializer(read_only=True)
+    is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = IssueAssignment
-        fields = ["id", "department", "officer", "status", "rejection_reason", "assigned_at", "accepted_at"]
+        fields = ["id", "department", "officer", "status", "rejection_reason", "assigned_at", "accepted_at", "is_mine"]
         read_only_fields = fields
+
+    def get_is_mine(self, obj) -> bool:
+        """True when the requesting user is the assigned officer (so the UI knows which actions to offer)."""
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.officer.user_id == request.user.id)
 
     def get_department(self, obj) -> dict:
         return {"id": str(obj.department_id), "name": obj.department.name}
 
 
-def _current_assignment(issue):
+def _current_assignment(issue, request=None):
     """Uses the prefetched `assignments`; at most one is active (DB constraint)."""
     for assignment in issue.assignments.all():
         if assignment.status in IssueAssignment.ACTIVE_STATUSES:
-            return AssignmentSerializer(assignment).data
+            return AssignmentSerializer(assignment, context={"request": request}).data
     return None
 
 
@@ -73,7 +81,7 @@ class OfficerIssueSerializer(IssueSerializer):
 
     @extend_schema_field(AssignmentSerializer(allow_null=True))
     def get_assignment(self, obj):
-        return _current_assignment(obj)
+        return _current_assignment(obj, self.context.get("request"))
 
 
 class AdminIssueSerializer(IssueSerializer):
@@ -96,7 +104,7 @@ class AdminIssueSerializer(IssueSerializer):
 
     @extend_schema_field(AssignmentSerializer(allow_null=True))
     def get_assignment(self, obj):
-        return _current_assignment(obj)
+        return _current_assignment(obj, self.context.get("request"))
 
 
 class DepartmentNoteSerializer(serializers.ModelSerializer):
@@ -173,3 +181,35 @@ class OfficerCreateSerializer(RegisterSerializer):
         from . import services
 
         return services.create_officer(**validated_data)
+
+
+class StatusHistorySerializer(serializers.ModelSerializer):
+    """One row of an issue's status trail. Staff-only: who changed it, and the stated reason."""
+
+    changed_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = IssueStatusHistory
+        fields = ["id", "old_status", "new_status", "changed_by", "reason", "created_at"]
+        read_only_fields = fields
+
+    def get_changed_by(self, obj) -> dict | None:
+        if obj.changed_by is None:  # the account was deleted; the history row survives
+            return None
+        return {"name": obj.changed_by.full_name, "role": obj.changed_by.role}
+
+
+class OfficerIssueDetailSerializer(OfficerIssueSerializer):
+    status_history = StatusHistorySerializer(many=True, read_only=True)
+
+    class Meta(OfficerIssueSerializer.Meta):
+        fields = OfficerIssueSerializer.Meta.fields + ["status_history"]
+        read_only_fields = fields
+
+
+class AdminIssueDetailSerializer(AdminIssueSerializer):
+    status_history = StatusHistorySerializer(many=True, read_only=True)
+
+    class Meta(AdminIssueSerializer.Meta):
+        fields = AdminIssueSerializer.Meta.fields + ["status_history"]
+        read_only_fields = fields

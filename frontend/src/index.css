@@ -1,10 +1,25 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------------------------------
+   Design tokens
+
+   Spacing   : 8px grid. Layout uses multiples of 8 (gap-2/4/6/8, p-4/6/8); 4px only inside controls.
+   Radius    : ONE scale -- 6px controls (rounded-md), 12px surfaces (rounded-xl), pills/dots (full).
+   Elevation : borders carry structure; shadows only lift (xs: resting surface, md: hover/popover,
+               lg: dialogs). Never decorative.
+   Type      : display / title / heading / body / caption (+ overline, stat). See the type-* utilities.
+   Colour    : one primary (blue, hue 255). Status and priority colours are semantic tokens used by
+               badges, timeline dots and charts alike, so a status is the same colour everywhere.
+   ------------------------------------------------------------------------------------------ */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
@@ -13,6 +28,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -25,36 +41,157 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05), 0 1px 1px 0 rgb(15 23 42 / 0.03);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  --shadow-lg: 0 16px 40px -8px rgb(15 23 42 / 0.18), 0 4px 12px -4px rgb(15 23 42 / 0.08);
+}
+
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem; /* md = 6px (controls), xl = 12px (surfaces) */
+
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.205 0.01 255);
+  --canvas: oklch(0.975 0.003 255); /* the app background behind white surfaces */
+  --surface: oklch(1 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.205 0.01 255);
   --primary: oklch(0.45 0.15 255);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.965 0.004 255);
+  --secondary-foreground: oklch(0.25 0.01 255);
+  --muted: oklch(0.965 0.004 255);
+  --muted-foreground: oklch(0.5 0.015 255);
+  --subtle: oklch(0.985 0.002 255); /* table header / hover wash */
+  --accent: oklch(0.955 0.012 255);
+  --accent-foreground: oklch(0.25 0.01 255);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: oklch(0.925 0.004 255);
+  --input: oklch(0.9 0.005 255);
   --ring: oklch(0.45 0.15 255);
+
+  /* status: the same hues StatusBadge always used (slate / sky / indigo / amber / emerald / orange / rose) */
+  --status-reported: oklch(0.554 0.041 257);
+  --status-under_review: oklch(0.588 0.158 241);
+  --status-assigned: oklch(0.511 0.2 276);
+  --status-in_progress: oklch(0.72 0.17 70);
+  --status-resolved: oklch(0.596 0.145 163);
+  --status-reopened: oklch(0.67 0.2 47);
+  --status-rejected: oklch(0.586 0.22 17);
+  /* priority: slate / sky / orange / red. Chroma is held back so full-width chart bars don't shout (lightness
+     is unchanged, so badge text contrast is too); the ramp still reads low -> critical by hue and weight. */
+  --priority-low: oklch(0.65 0.04 257);
+  --priority-medium: oklch(0.64 0.11 237);
+  --priority-high: oklch(0.67 0.16 47);
+  --priority-critical: oklch(0.577 0.2 27);
+  /* generic tones for non-status UI (alerts, trends, stat accents) */
+  --tone-primary: var(--primary);
+  --tone-success: var(--status-resolved);
+  --tone-warning: var(--status-in_progress);
+  --tone-danger: var(--status-rejected);
+  --tone-neutral: var(--status-reported);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss03";
+    -webkit-font-smoothing: antialiased;
+  }
   body {
     @apply bg-background text-foreground antialiased;
   }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 20%, white);
+  }
 }
 
-/* Map pins (see features/map/categoryColors.ts): a coloured dot with a white ring */
+/* ---- typography scale: every piece of text on the staff UI is one of these ---- */
+@utility type-display {
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  font-weight: 650;
+  letter-spacing: -0.022em;
+}
+@utility type-title {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+}
+@utility type-heading {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+}
+@utility type-body {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+@utility type-caption {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted-foreground);
+}
+@utility type-overline {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+@utility type-stat {
+  font-size: 2rem;
+  line-height: 2.5rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- tones: set data-tone="in_progress" (or "success", "danger"...) and use these ---- */
+[data-tone="reported"] { --tone: var(--status-reported); }
+[data-tone="under_review"] { --tone: var(--status-under_review); }
+[data-tone="assigned"] { --tone: var(--status-assigned); }
+[data-tone="in_progress"] { --tone: var(--status-in_progress); }
+[data-tone="resolved"] { --tone: var(--status-resolved); }
+[data-tone="reopened"] { --tone: var(--status-reopened); }
+[data-tone="rejected"] { --tone: var(--status-rejected); }
+[data-tone="low"] { --tone: var(--priority-low); }
+[data-tone="medium"] { --tone: var(--priority-medium); }
+[data-tone="high"] { --tone: var(--priority-high); }
+[data-tone="critical"] { --tone: var(--priority-critical); }
+[data-tone="primary"] { --tone: var(--tone-primary); }
+[data-tone="success"] { --tone: var(--tone-success); }
+[data-tone="warning"] { --tone: var(--tone-warning); }
+[data-tone="danger"] { --tone: var(--tone-danger); }
+[data-tone="neutral"] { --tone: var(--tone-neutral); }
+
+@utility tone-chip {
+  color: color-mix(in oklab, var(--tone) 78%, black);
+  background: color-mix(in oklab, var(--tone) 9%, white);
+  border-color: color-mix(in oklab, var(--tone) 22%, white);
+}
+@utility tone-text {
+  color: color-mix(in oklab, var(--tone) 80%, black);
+}
+@utility tone-dot {
+  background: var(--tone);
+}
+@utility tone-wash {
+  background: color-mix(in oklab, var(--tone) 8%, white);
+}
+
+/* ---- map pins (features/map/categoryColors.ts) ---- */
 .civicfix-pin {
   background: transparent;
   border: 0;
@@ -69,4 +206,33 @@
 }
 .leaflet-container {
   font: inherit;
+}
+
+/* ---- motion: one easing, short durations, and respect the user's setting ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@utility animate-rise {
+  animation: rise 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@utility animate-fade {
+  animation: fade 160ms ease-out both;
+}
+@keyframes pop {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@utility animate-pop {
+  animation: pop 200ms cubic-bezier(0.2, 0, 0, 1) both;
 }

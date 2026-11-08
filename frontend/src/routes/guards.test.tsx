@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { setRefreshToken } from '@/services/authBridge'
 import { fakeJwt, makeIssue, makeUser } from '@/test/factories'
 import { server } from '@/test/server'
+import { adminListHandler, officerListHandler, staffDefaults } from '@/test/staff'
 import { issuesListHandler, renderApp, signInAs, url } from '@/test/utils'
 
 describe('ProtectedRoute (UX gate)', () => {
@@ -55,11 +56,15 @@ describe('ProtectedRoute (UX gate)', () => {
     expect(await screen.findByText('Broken swing')).toBeInTheDocument()
   })
 
-  it.each(['officer', 'admin'] as const)('keeps a %s out of the citizen pages (redirected to coming-soon)', async (role) => {
+  it.each([
+    ['officer', '/officer', 'Officer workspace'],
+    ['admin', '/admin', 'Admin console'],
+  ] as const)('keeps a %s out of the citizen pages (redirected to their own workspace at %s)', async (role, home, workspace) => {
     signInAs(role)
+    server.use(...staffDefaults(), officerListHandler([]), adminListHandler([]))
     const { router } = renderApp('/dashboard')
-    expect(await screen.findByText(/your dashboard is coming soon/i)).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/coming-soon')
+    expect((await screen.findAllByText(workspace)).length).toBeGreaterThan(0) // shown in both the sidebar and the mobile header
+    expect(router.state.location.pathname).toBe(home)
     expect(screen.queryByRole('heading', { name: /hello/i })).not.toBeInTheDocument()
   })
 

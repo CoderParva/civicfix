@@ -87,3 +87,11 @@ export interface CreateIssuePayload {
   address?: string
   landmark?: string
 }
+
+export interface IssueComment {
+  id: string
+  author_name: string
+  content: string
+  is_mine: boolean
+  created_at: string
+}

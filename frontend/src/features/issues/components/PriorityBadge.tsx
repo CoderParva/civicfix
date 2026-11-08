@@ -1,19 +1,26 @@
-import { Badge } from '@/components/ui/badge'
 import type { IssuePriority } from '@/types/api'
 import { cn } from '@/utils/cn'
 
-const PRIORITY: Record<IssuePriority, { label: string; className: string }> = {
-  low: { label: 'Low priority', className: 'border-slate-300 text-slate-700' },
-  medium: { label: 'Medium priority', className: 'border-sky-300 text-sky-800' },
-  high: { label: 'High priority', className: 'border-orange-300 text-orange-800' },
-  critical: { label: 'Critical', className: 'border-red-400 bg-red-50 text-red-800' },
-}
+import { PRIORITY_META } from '../statusMeta'
 
-export function PriorityBadge({ priority }: { priority: IssuePriority }) {
-  const { label, className } = PRIORITY[priority] ?? { label: priority, className: '' }
+/**
+ * `label` shows the long form ("Medium priority") used on citizen pages; the staff tables use the
+ * compact form ("Medium") because the column header already says Priority.
+ */
+export function PriorityBadge({ priority, compact = false, className }: { priority: IssuePriority; compact?: boolean; className?: string }) {
+  const meta = PRIORITY_META[priority]
+  const Icon = meta?.icon
   return (
-    <Badge variant="outline" className={cn(className)} data-priority={priority}>
-      {label}
-    </Badge>
+    <span
+      data-tone={priority}
+      data-priority={priority}
+      className={cn(
+        'tone-chip inline-flex h-6 w-fit shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap',
+        className,
+      )}
+    >
+      {Icon && <Icon aria-hidden className="size-3.5" />}
+      {meta ? (priority === 'critical' || compact ? meta.label : `${meta.label} priority`) : priority}
+    </span>
   )
 }

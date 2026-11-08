@@ -107,6 +107,19 @@ class TestList:
         assert api.get(reverse("officer-issue-list"), {"status": "bogus"}).status_code == 400
 
 
+class TestAssignmentIsMine:
+    """assignment.is_mine tells the UI whether the requester is the assigned officer (so it can offer or disable actions)."""
+
+    def test_true_for_the_assigned_officer_false_for_a_colleague_and_admin(self, api, officer_profile, colleague, admin_user, assigned_issue):
+        api.force_authenticate(officer_profile.user)
+        assert api.get(u("officer-issue-detail", assigned_issue)).data["assignment"]["is_mine"] is True
+        assert api.get(reverse("officer-issue-list")).data["results"][0]["assignment"]["is_mine"] is True
+        api.force_authenticate(colleague.user)
+        assert api.get(u("officer-issue-detail", assigned_issue)).data["assignment"]["is_mine"] is False
+        api.force_authenticate(admin_user)
+        assert api.get(u("admin-issue-detail", assigned_issue)).data["assignment"]["is_mine"] is False
+
+
 class TestAccept:
     def test_accept_moves_to_in_progress(self, api, officer_profile, assigned_issue):
         api.force_authenticate(officer_profile.user)

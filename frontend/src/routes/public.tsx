@@ -1,7 +1,6 @@
 import type { RouteObject } from 'react-router-dom'
 
 import { PublicLayout } from '@/layouts/PublicLayout'
-import { ComingSoonPage } from '@/pages/ComingSoonPage'
 import { ExplorePage } from '@/pages/ExplorePage'
 import { IssueDetailPage } from '@/pages/IssueDetailPage'
 import { LandingPage } from '@/pages/LandingPage'
@@ -15,7 +14,6 @@ export const publicRoutes: RouteObject[] = [
     element: <PublicLayout />,
     children: [
       { index: true, element: <LandingPage /> },
-      { path: 'coming-soon', element: <ComingSoonPage /> },
       // public: anyone can browse approved issues; the API decides what each viewer may see
       { path: 'explore', element: <ExplorePage /> },
       { path: 'issues/:id', element: <IssueDetailPage /> },
