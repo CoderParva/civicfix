@@ -10,7 +10,7 @@ export function ErrorState({
   onRetry?: () => void
 }) {
   return (
-    <div role="alert" className="flex flex-col items-center gap-4 rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
+    <div role="alert" data-slot="error-state" className="flex flex-col items-center gap-4 rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-12 text-center">
       <span data-tone="danger" className="tone-chip flex size-12 items-center justify-center rounded-full border">
         <TriangleAlert aria-hidden className="size-5" />
       </span>

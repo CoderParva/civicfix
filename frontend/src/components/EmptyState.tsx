@@ -13,7 +13,7 @@ interface EmptyStateProps {
 /** What you see when there is nothing to show: an icon, one line of why, and the next step. */
 export function EmptyState({ title, description, action, icon: Icon = Inbox, tone = 'neutral' }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
+    <div data-slot="empty-state" className="flex flex-col items-center gap-4 px-6 py-16 text-center">
       <span data-tone={tone} className="tone-chip flex size-12 items-center justify-center rounded-full border">
         <Icon aria-hidden className="size-5" />
       </span>

@@ -1,7 +1,8 @@
+import { List, Map as MapIcon, SearchX, type LucideIcon } from 'lucide-react'
 import { lazy, Suspense, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 
+import { PageBanner } from '@/components/civic/PageBanner'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
@@ -10,8 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ExploreFilters } from '@/features/issues/components/ExploreFilters'
 import { IssueCard } from '@/features/issues/components/IssueCard'
-import { hasActiveFilters, parseExploreParams, toSearchParams, type ExploreState, type ExploreView } from '@/features/issues/explore'
+import { hasActiveFilters, type ExploreView } from '@/features/issues/explore'
 import { useCategories, useExploreIssues } from '@/features/issues/hooks'
+import { useExploreState } from '@/features/issues/useExploreState'
 import { getApiErrorMessage } from '@/services/apiClient'
 import { PAGE_SIZE } from '@/services/issuesApi'
 import { cn } from '@/utils/cn'
@@ -19,29 +21,21 @@ import { cn } from '@/utils/cn'
 // Leaflet + MapLibre are heavy and only needed here, so they load on demand.
 const MapView = lazy(() => import('@/features/map/MapView'))
 
-const VIEWS: { value: ExploreView; label: string }[] = [
-  { value: 'list', label: 'List' },
-  { value: 'map', label: 'Map' },
+const VIEWS: { value: ExploreView; label: string; icon: LucideIcon }[] = [
+  { value: 'list', label: 'List', icon: List },
+  { value: 'map', label: 'Map', icon: MapIcon },
 ]
 
 export function ExplorePage() {
-  const [params, setParams] = useSearchParams()
-  const state = parseExploreParams(params)
+  const { state, update, clear, backToFirstPage } = useExploreState()
   const categories = useCategories()
   const data = useExploreIssues(state)
-
-  /** Change part of the state. Filters reset to page 1; typing replaces history instead of piling it up. */
-  function update(patch: Partial<ExploreState>, opts: { resetPage?: boolean; replace?: boolean } = {}) {
-    const next = { ...state, ...patch, page: opts.resetPage === false ? (patch.page ?? state.page) : 1 }
-    setParams(toSearchParams(next), { replace: opts.replace ?? false })
-  }
 
   // A stale/hand-edited page number past the end comes back as a 404: fall back to page 1.
   const outOfRange = data.isError && axios.isAxiosError(data.error) && data.error.response?.status === 404 && state.page > 1
   useEffect(() => {
-    if (outOfRange) setParams(toSearchParams({ ...state, page: 1 }), { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the out-of-range signal
-  }, [outOfRange])
+    if (outOfRange) backToFirstPage()
+  }, [outOfRange, backToFirstPage])
 
   const first = (state.page - 1) * PAGE_SIZE + 1
   const last = first + data.issues.length - 1
@@ -55,35 +49,40 @@ export function ExplorePage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Explore issues</h1>
-          <p className="text-sm text-muted-foreground">Everything reported in the city, as a list or on the map.</p>
-        </div>
-        <div role="group" aria-label="View" className="inline-flex rounded-md border p-0.5">
-          {VIEWS.map((v) => (
-            <Button
-              key={v.value}
-              size="sm"
-              variant={state.view === v.value ? 'default' : 'ghost'}
-              aria-pressed={state.view === v.value}
-              onClick={() => update({ view: v.value }, { resetPage: false })}
-            >
-              {v.label}
-            </Button>
-          ))}
-        </div>
-      </div>
+      <PageBanner
+        title="Explore issues"
+        description="Everything reported in the city, as a list or on the map."
+        actions={
+          <div role="group" aria-label="View" className="inline-flex rounded-full bg-white/15 p-1 ring-1 ring-white/25 backdrop-blur">
+            {VIEWS.map((v) => (
+              <Button
+                key={v.value}
+                size="sm"
+                variant="ghost"
+                aria-pressed={state.view === v.value}
+                onClick={() => update({ view: v.value }, { resetPage: false })}
+                className={cn(
+                  'h-10 rounded-full px-5 text-white hover:bg-white/20 hover:text-white',
+                  state.view === v.value && 'bg-white text-primary shadow-md hover:bg-white hover:text-primary',
+                )}
+              >
+                <v.icon aria-hidden className="size-4" />
+                {v.label}
+              </Button>
+            ))}
+          </div>
+        }
+      />
 
       <ExploreFilters
         state={state}
         categories={categories.data ?? []}
         canClear={hasActiveFilters(state)}
-        onClear={() => setParams(toSearchParams({ ...state, q: '', category: '', status: '', priority: '', page: 1 }))}
+        onClear={clear}
         onChange={(key, value) => update({ [key]: value }, { replace: key === 'q' })}
       />
 
-      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+      <p role="status" aria-live="polite" className="text-sm font-semibold text-muted-foreground">
         {summary}
       </p>
 
@@ -97,6 +96,8 @@ export function ExplorePage() {
           <>
             {data.issues.length === 0 ? (
               <EmptyState
+                icon={SearchX}
+                tone="primary"
                 title="No issues match"
                 description={hasActiveFilters(state) ? 'Try removing a filter or searching for something else.' : 'Nothing has been reported publicly yet.'}
               />

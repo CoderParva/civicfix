@@ -1,5 +1,7 @@
+import { ArrowRight, Megaphone } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { PageBanner } from '@/components/civic/PageBanner'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { buttonVariants } from '@/components/ui/button'
@@ -18,15 +20,16 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Hello, {user?.full_name}</h1>
-          <p className="text-sm text-muted-foreground">Here is where your reports stand.</p>
-        </div>
-        <Link to="/report" className={cn(buttonVariants())}>
-          Report an issue
-        </Link>
-      </div>
+      <PageBanner
+        title={`Hello, ${user?.full_name}`}
+        description="Here is where your reports stand."
+        actions={
+          <Link to="/report" className={cn(buttonVariants({ variant: 'brand', size: 'lg' }), 'h-12 rounded-2xl px-6')}>
+            Report an issue
+            <ArrowRight aria-hidden className="size-5" />
+          </Link>
+        }
+      />
 
       {issues.isPending && (
         <div role="status" aria-label="Loading statistics" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -54,15 +57,17 @@ function DashboardBody({ issues }: { issues: NonNullable<ReturnType<typeof useMy
       )}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Recent reports</h2>
+          <h2 className="font-display text-2xl font-extrabold tracking-tight">Recent reports</h2>
           {issues.length > 0 && (
-            <Link to="/my-reports" className="text-sm font-medium text-primary underline-offset-4 hover:underline">
+            <Link to="/my-reports" className="inline-flex items-center gap-1 text-sm font-semibold text-primary underline-offset-4 hover:underline">
               View all
             </Link>
           )}
         </div>
         {issues.length === 0 ? (
           <EmptyState
+            icon={Megaphone}
+            tone="primary"
             title="You have not reported anything yet"
             description="Spotted a pothole, a broken streetlight or a garbage pile? Tell the city."
             action={

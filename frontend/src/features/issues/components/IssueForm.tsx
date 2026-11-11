@@ -19,6 +19,7 @@ import type { DuplicateMatch } from '@/types/ai'
 
 import { useCategories, useSubmitReport, type SubmitReportResult } from '../hooks'
 import { reportIssueSchema, type ReportIssueInput, type ReportIssueValues } from '../schemas'
+import { CategoryChips } from './CategoryChips'
 import { PhotoDropzone } from './PhotoDropzone'
 
 // The map pulls in Leaflet + MapLibre, so it loads on demand instead of with the form.
@@ -143,6 +144,16 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
         {categories.isError ? (
           <ErrorState message="Could not load categories." onRetry={() => categories.refetch()} />
         ) : (
+          <>
+          {categories.data && (
+            <CategoryChips
+              categories={categories.data}
+              value={watch('category')}
+              onChange={(value) => setValue('category', value, { shouldValidate: true, shouldDirty: true })}
+              groupLabel="Type of problem"
+              size="lg"
+            />
+          )}
           <select
             id="category"
             className={SELECT_CLASS}
@@ -157,11 +168,12 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
               </option>
             ))}
           </select>
+          </>
         )}
       </FormField>
 
-      <fieldset className="flex flex-col gap-3 rounded-xl border p-4">
-        <legend className="px-1 text-sm font-medium">Location</legend>
+      <fieldset className="flex flex-col gap-3 rounded-3xl border-2 border-primary/15 bg-primary-soft p-5">
+        <legend className="rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground shadow-sm">Location</legend>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" size="sm" onClick={fillFromGps} disabled={locating}>
             {locating ? 'Finding your location…' : 'Use my current location'}
@@ -190,7 +202,7 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
       </fieldset>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Photos (optional)</span>
+        <span className="text-sm font-semibold">Photos (optional)</span>
         <PhotoDropzone files={photos} onChange={setPhotos} />
         <PhotoSuggestion
           photo={photos[0] ?? null}
@@ -200,7 +212,7 @@ export function IssueForm({ onSubmitted }: { onSubmitted: (result: SubmitReportR
         />
       </div>
 
-      <Button type="submit" size="lg" disabled={isSubmitting || submitReport.isPending}>
+      <Button type="submit" size="lg" variant="brand" className="h-14 rounded-2xl text-lg" disabled={isSubmitting || submitReport.isPending}>
         {isSubmitting || submitReport.isPending ? 'Submitting…' : 'Submit report'}
       </Button>
 

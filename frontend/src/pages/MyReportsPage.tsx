@@ -1,5 +1,7 @@
+import { ArrowRight, FilePlus2 } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 
+import { PageBanner } from '@/components/civic/PageBanner'
 import { EmptyState } from '@/components/EmptyState'
 import { ErrorState } from '@/components/ErrorState'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
@@ -21,12 +23,16 @@ export function MyReportsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">My reports</h1>
-        <Link to="/report" className={cn(buttonVariants())}>
-          Report an issue
-        </Link>
-      </div>
+      <PageBanner
+        title="My reports"
+        description="Every report you have made, and where it stands."
+        actions={
+          <Link to="/report" className={cn(buttonVariants({ variant: 'brand', size: 'lg' }), 'h-12 rounded-2xl px-6')}>
+            Report an issue
+            <ArrowRight aria-hidden className="size-5" />
+          </Link>
+        }
+      />
 
       {notice && <Alert variant={notice.kind}>{notice.message}</Alert>}
 
@@ -35,6 +41,8 @@ export function MyReportsPage() {
       {issues.isSuccess &&
         (issues.data.length === 0 ? (
           <EmptyState
+            icon={FilePlus2}
+            tone="primary"
             title="No reports yet"
             description="Once you report an issue it will show up here with its status."
             action={

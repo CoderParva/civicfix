@@ -1,0 +1,349 @@
+/* ------------------------------------------------------------------------------------------
+   Civic theme: the citizen-facing side (landing, auth, dashboard, report, explore, issue detail).
+
+   The staff workspaces (officer / admin) keep the quiet design from index.css. This file only does anything
+   when <html data-theme="civic"> is set, which PublicLayout and CitizenLayout do (hooks/useCivicTheme). It is
+   set on <html> rather than on a wrapper so that portalled UI (dialogs, toasts) is themed too.
+
+   Direction: bold civic-tech. One vivid ultramarine primary and a saffron accent used deliberately for the
+   main call to action; the per-category colours (the same ones the map pins use) carried into cards and
+   icons; one radius scale (10px controls, 16px surfaces, 24px hero blocks); everything interactive moves
+   (a little) on hover and focus.
+   ------------------------------------------------------------------------------------------ */
+
+html[data-theme="civic"] {
+  --radius: 0.75rem; /* controls rounded-md = 10px, surfaces rounded-xl = 16px, hero blocks rounded-3xl = 24px */
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.22 0.05 272);
+  --canvas: oklch(0.972 0.016 275);
+  --surface: oklch(1 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.05 272);
+
+  --primary: oklch(0.5 0.235 268); /* vivid ultramarine */
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-deep: oklch(0.33 0.17 272);
+  --primary-soft: color-mix(in oklab, var(--primary) 9%, white);
+  --brand: oklch(0.83 0.165 80); /* saffron: the complement of the blue, reserved for the main action */
+  --brand-foreground: oklch(0.27 0.06 60);
+
+  --secondary: oklch(0.955 0.022 275);
+  --secondary-foreground: oklch(0.27 0.05 272);
+  --muted: oklch(0.953 0.02 275);
+  --muted-foreground: oklch(0.45 0.05 272);
+  --subtle: oklch(0.982 0.01 275);
+  --accent: oklch(0.945 0.04 275);
+  --accent-foreground: oklch(0.27 0.05 272);
+  --border: oklch(0.9 0.026 275);
+  --input: oklch(0.82 0.035 275);
+  --ring: oklch(0.5 0.235 268);
+
+  /* the status "primary" tone follows the brand colour */
+  --tone-primary: var(--primary);
+}
+
+html[data-theme="civic"] body {
+  background: var(--canvas);
+}
+html[data-theme="civic"] ::selection {
+  background: color-mix(in oklab, var(--brand) 55%, white);
+  color: var(--brand-foreground);
+}
+html[data-theme="civic"] h1,
+html[data-theme="civic"] h2 {
+  font-family: var(--font-display);
+}
+
+/* ---- controls ------------------------------------------------------------------------------ */
+
+html[data-theme="civic"] .civic-btn {
+  font-weight: 600;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 160ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 160ms,
+    color 160ms,
+    border-color 160ms;
+}
+html[data-theme="civic"] .civic-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+html[data-theme="civic"] .civic-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+html[data-theme="civic"] .civic-btn.v-default {
+  box-shadow: 0 10px 22px -10px color-mix(in oklab, var(--primary) 80%, transparent);
+}
+html[data-theme="civic"] .civic-btn.v-default:not(:disabled):hover {
+  box-shadow: 0 14px 26px -10px color-mix(in oklab, var(--primary) 85%, transparent);
+  background: color-mix(in oklab, var(--primary) 92%, white);
+}
+html[data-theme="civic"] .civic-btn.v-brand {
+  background: var(--brand);
+  color: var(--brand-foreground);
+  font-weight: 700;
+  box-shadow: 0 10px 24px -10px color-mix(in oklab, var(--brand) 90%, #c2410c);
+}
+html[data-theme="civic"] .civic-btn.v-brand:not(:disabled):hover {
+  background: color-mix(in oklab, var(--brand) 88%, white);
+  box-shadow: 0 16px 30px -10px color-mix(in oklab, var(--brand) 90%, #c2410c);
+}
+html[data-theme="civic"] .civic-btn.v-outline:not(.on-dark) {
+  border-width: 1.5px;
+  border-color: var(--input);
+  background: white;
+}
+html[data-theme="civic"] .civic-btn.v-outline:not(.on-dark):not(:disabled):hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+html[data-theme="civic"] [data-slot="input"],
+html[data-theme="civic"] [data-slot="textarea"],
+html[data-theme="civic"] select {
+  background: white;
+  border-width: 1.5px;
+  border-color: var(--input);
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+html[data-theme="civic"] [data-slot="input"],
+html[data-theme="civic"] select {
+  height: 2.75rem;
+}
+html[data-theme="civic"] [data-slot="input"]:hover,
+html[data-theme="civic"] [data-slot="textarea"]:hover,
+html[data-theme="civic"] select:hover {
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--input));
+}
+html[data-theme="civic"] [data-slot="input"]:focus-visible,
+html[data-theme="civic"] [data-slot="textarea"]:focus-visible,
+html[data-theme="civic"] select:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 18%, transparent);
+  outline: none;
+}
+html[data-theme="civic"] [data-slot="label"] {
+  font-weight: 600;
+}
+
+html[data-theme="civic"] [data-slot="card"] {
+  border-color: color-mix(in oklab, var(--border) 80%, white);
+  box-shadow:
+    0 1px 2px oklch(0.3 0.1 275 / 0.05),
+    0 12px 28px -16px oklch(0.3 0.12 275 / 0.22);
+}
+
+/* loading: a moving sheen instead of a plain pulse */
+html[data-theme="civic"] [data-slot="skeleton"] {
+  animation: none;
+  background: linear-gradient(100deg, var(--muted) 30%, color-mix(in oklab, var(--primary) 7%, white) 50%, var(--muted) 70%);
+  background-size: 220% 100%;
+  animation: civic-sheen 1.4s ease-in-out infinite;
+}
+@keyframes civic-sheen {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+/* empty and error states */
+html[data-theme="civic"] [data-slot="empty-state"] {
+  margin: 0;
+  border: 2px dashed color-mix(in oklab, var(--primary) 28%, white);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(60% 80% at 50% 0%, color-mix(in oklab, var(--brand) 22%, white), transparent 70%),
+    white;
+}
+html[data-theme="civic"] [data-slot="empty-state"] .tone-chip {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1.25rem;
+  border-width: 2px;
+  transform: rotate(-4deg);
+  background: var(--primary-soft);
+  color: var(--primary);
+  box-shadow: 0 10px 24px -12px color-mix(in oklab, var(--primary) 60%, transparent);
+}
+html[data-theme="civic"] [data-slot="empty-state"] .tone-chip svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+html[data-theme="civic"] [data-slot="error-state"] {
+  border-radius: 1.5rem;
+  border-width: 2px;
+}
+
+/* ---- building blocks -------------------------------------------------------------------------- */
+
+/* the big colour block: used by the landing hero and, smaller, by the page banners */
+.civic-hero,
+.civic-banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: white;
+  background:
+    radial-gradient(70% 90% at 100% 0%, color-mix(in oklab, oklch(0.62 0.22 330) 55%, transparent), transparent 60%),
+    radial-gradient(60% 80% at 0% 100%, color-mix(in oklab, oklch(0.68 0.16 215) 50%, transparent), transparent 60%),
+    linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%);
+}
+.civic-hero::before,
+.civic-banner::before {
+  /* a dot grid, like survey-map paper */
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(color-mix(in oklab, white 28%, transparent) 1.2px, transparent 1.4px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom left, black, transparent 75%);
+}
+.civic-banner::after {
+  /* a saffron sun peeking in from the corner */
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -2.25rem;
+  top: -3.25rem;
+  width: 8.5rem;
+  height: 8.5rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, color-mix(in oklab, var(--brand) 95%, white), var(--brand) 55%, color-mix(in oklab, var(--brand) 70%, #ea580c));
+  opacity: 0.95;
+}
+.civic-banner .civic-banner-muted {
+  color: color-mix(in oklab, white 82%, var(--primary));
+}
+
+/* the per-category colour (set --cat from palette.ts on the element) */
+.cat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+  background: linear-gradient(145deg, color-mix(in oklab, var(--cat) 88%, white), var(--cat));
+  box-shadow: 0 8px 16px -8px color-mix(in oklab, var(--cat) 85%, transparent);
+}
+.cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1.5px solid var(--cat-line);
+  background: var(--cat-soft);
+  color: var(--cat-ink);
+  font-weight: 600;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 160ms,
+    border-color 160ms,
+    box-shadow 160ms;
+}
+button.cat-chip:hover,
+a.cat-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--cat);
+  background: color-mix(in oklab, var(--cat) 16%, white);
+}
+.cat-chip[aria-checked="true"],
+.cat-chip[aria-pressed="true"] {
+  border-color: var(--cat);
+  background: var(--cat);
+  color: white;
+  box-shadow: 0 10px 20px -10px color-mix(in oklab, var(--cat) 90%, transparent);
+}
+.cat-chip:focus-visible,
+.cat-tile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--cat) 28%, transparent);
+}
+.cat-tile {
+  position: relative;
+  overflow: hidden;
+  border: 1.5px solid var(--cat-line);
+  background:
+    radial-gradient(90% 90% at 100% 0%, var(--cat-soft), transparent 70%),
+    var(--cat-wash);
+  transition:
+    transform 200ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms,
+    border-color 200ms;
+}
+.cat-tile:hover {
+  transform: translateY(-4px) rotate(-0.6deg);
+  border-color: var(--cat);
+  box-shadow: 0 22px 34px -20px color-mix(in oklab, var(--cat) 80%, transparent);
+}
+.cat-tile:hover .cat-icon {
+  transform: scale(1.08) rotate(-6deg);
+}
+.cat-tile .cat-icon {
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* an interactive white surface that lifts on hover */
+.civic-lift {
+  transition:
+    transform 200ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 200ms,
+    border-color 200ms;
+}
+.civic-lift:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  box-shadow:
+    0 2px 4px oklch(0.3 0.1 275 / 0.05),
+    0 22px 36px -20px oklch(0.3 0.14 275 / 0.35);
+}
+
+/* soft floating motion for the hero illustration (the global reduced-motion rule flattens it) */
+@keyframes civic-float {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--tilt, 0deg)); }
+}
+.civic-float {
+  animation: civic-float 6s ease-in-out infinite;
+}
+
+/* pins on the hero's mock map */
+@keyframes civic-ping {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.civic-ping {
+  animation: civic-ping 2.4s ease-out infinite;
+}
+
+/* page content eases in */
+@keyframes civic-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.civic-enter {
+  animation: civic-enter 380ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+/* the issue-detail header: the same banner idea, in the issue's own category colour */
+.cat-banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: white;
+  background:
+    radial-gradient(60% 90% at 100% 0%, color-mix(in oklab, white 22%, transparent), transparent 60%),
+    linear-gradient(135deg, color-mix(in oklab, var(--cat) 88%, white) 0%, var(--cat) 45%, color-mix(in oklab, var(--cat) 72%, black) 100%);
+  box-shadow: 0 24px 40px -24px color-mix(in oklab, var(--cat) 80%, transparent);
+}
+.cat-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(color-mix(in oklab, white 30%, transparent) 1.2px, transparent 1.4px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom left, black, transparent 70%);
+}

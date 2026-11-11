@@ -1,6 +1,6 @@
 // Visual review helper: sign in as a seeded demo user and screenshot pages in a real browser.
 //
-//   node e2e/shoot.mjs <officer|admin|citizen> <path> [<path> ...]
+//   node e2e/shoot.mjs <officer|admin|citizen|anon> <path> [<path> ...]      (anon = signed out: landing, login, explore...)
 //
 // Env: SHOTS_DIR (required), SHOT_EMAIL (sign in as someone else),  DEMO_PASSWORD (default: the seed_demo password), SHOT_WIDTH (default 1440),
 //      SHOT_FULL=0 for viewport-only. Needs `npm run dev` + the backend, and `manage.py seed_demo` data.
@@ -22,8 +22,8 @@ const USERS = {
 }
 
 const [role, ...paths] = process.argv.slice(2)
-if (!DIR || !USERS[role] || paths.length === 0) {
-  console.error('usage: SHOTS_DIR=... node e2e/shoot.mjs <officer|admin|citizen> <path> [<path>...]')
+if (!DIR || (role !== 'anon' && !USERS[role]) || paths.length === 0) {
+  console.error('usage: SHOTS_DIR=... node e2e/shoot.mjs <officer|admin|citizen|anon> <path> [<path>...]')
   process.exit(2)
 }
 fs.mkdirSync(DIR, { recursive: true })
@@ -38,11 +38,15 @@ const errors = []
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text().slice(0, 200)))
 page.on('pageerror', (e) => errors.push(`PAGEERROR ${String(e).slice(0, 200)}`))
 
-await page.goto(`${APP}/login`)
-await page.getByLabel('Email').fill(process.env.SHOT_EMAIL ?? USERS[role])
-await page.getByLabel('Password').fill(PASSWORD)
-await page.getByRole('button', { name: 'Log in' }).click()
-await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 20000 })
+if (role === 'anon') {
+  await page.goto(`${APP}/`)
+} else {
+  await page.goto(`${APP}/login`)
+  await page.getByLabel('Email').fill(process.env.SHOT_EMAIL ?? USERS[role])
+  await page.getByLabel('Password').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 20000 })
+}
 
 for (const target of paths) {
   // client-side navigation keeps the in-memory token (a hard goto would reload and re-bootstrap the session)
@@ -61,6 +65,8 @@ for (const target of paths) {
       await page.waitForTimeout(750)
     }
   }
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+  await page.waitForTimeout(250)
   const name = target.replace(/^\//, '').replace(/[/?=&]+/g, '-') || 'root'
   const file = path.join(DIR, `${role}-${name}.png`)
   await page.screenshot({ path: file, fullPage: FULL })
